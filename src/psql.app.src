@@ -1,0 +1,23 @@
+{application, psql,
+ [
+  {description, ""},
+  {vsn, git},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib,
+                  logger,
+                  hooks
+                 ]},
+  {mod, { psql, []}},
+  {env, [
+      {host, "localhost"},
+      {port, 5434},
+      {user, "skuapso"},
+      {database, "skuapso"},
+      {password, ""},
+      {max_connections, 20},
+      {weight, 1},
+      {pre_commands, []}
+    ]}
+ ]}.
