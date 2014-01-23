@@ -31,35 +31,43 @@ help:
 include Makefile.config
 
 DBAUTH	:= -U $(DBUSER) -h $(DBHOST) -p $(DBPORT) $(DB)
-PSQL	:= /usr/bin/psql $(DBAUTH)
+PSQL	:= PSQLRC=psqlrc /usr/bin/psql -q $(DBAUTH)
 PGDUMPC := /usr/bin/pg_dump -F c -v -x $(DBAUTH)
 PGDUMPP	:= /usr/bin/pg_dump -F p -O -s -x $(DBAUTH)
 DBSHA	:= $(PGDUMPP) | egrep -v '^--' | egrep -v '^$$' | sha1sum -t | cut -f1 -d' '
 
 install: install_schemas install_functions install_tables install_triggers install_init_data
-	
 
 install_schemas:
-	@for i in $(FUNCTIONS); do echo "create schema \"`echo $$i | sed 's/^functions\/[0-9][0-9]\.//' | sed 's/\.sql$$//'`\"" | $(PSQL); done
+	@echo "*** creating schemas"
+	@for i in $(FUNCTIONS); do \
+		echo "\t*** creating schema $$i"; \
+		echo "create schema \"`echo $$i | sed 's/^functions\/[0-9][0-9]\.//' | sed 's/\.sql$$//'`\"" \
+		| $(PSQL); \
+	done
 
 install_functions:
-	@echo "\t*** Installing functions"
-	@for i in $(FUNCTIONS); do echo "\t\t*** installing $$i"; $(PSQL) < $$i; done
+	@echo "*** Installing functions"
+	@for i in $(FUNCTIONS); do echo "\t*** installing $$i"; $(PSQL) < $$i; done
 
 install_tables:
-	@echo "\t*** Installing tables"
-	@for i in $(TABLES); do echo "\t\t*** installing $$i"; $(PSQL) < $$i; done
+	@echo "*** Installing tables"
+	@for i in $(TABLES); do echo "\t*** installing $$i"; $(PSQL) < $$i; done
 
 install_triggers:
-	@echo "\t*** Installing triggers"
-	@for i in $(TRIGGERS); do echo "\t\t*** installing $$i"; $(PSQL) < $$i; done
+	@echo "*** Installing triggers"
+	@for i in $(TRIGGERS); do echo "\t*** installing $$i"; $(PSQL) < $$i; done
 
 install_init_data:
-	@echo "\t*** Initalizing database with data"
-	@for i in $(INITDATA); do echo "\t\t*** installing $$i"; $(PSQL) < $$i; done
+	@echo "*** Initalizing database with data"
+	@for i in $(INITDATA); do echo "\t*** installing $$i"; $(PSQL) < $$i; done
 
 uninstall:
-	@for i in $(FUNCTIONS); do echo "drop schema \"`echo \"$$i\" | sed 's/^functions\/[0-9][0-9]\.//' | sed 's/\.sql$$//'`\" cascade" | $(PSQL); done
+	@echo "*** dropping schemas"
+	@for i in $(FUNCTIONS); do \
+		echo "\t*** dropping schema $$i"; \
+		echo "drop schema \"`echo \"$$i\" | sed 's/^functions\/[0-9][0-9]\.//' | sed 's/\.sql$$//'`\" cascade" | $(PSQL); \
+	done
 
 reinstall: uninstall install
 
