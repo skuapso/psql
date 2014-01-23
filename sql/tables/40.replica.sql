@@ -67,28 +67,30 @@ create table replica.exclude_rules(
 );
 
 create table replica.data(
-  id bigint,
-  dbtime timestamp with time zone default now(),
-  parent_id bigint not null,
+  id timestamptz default current_timestamp,
+  parent_id timestamptz not null,
   server_id bigint not null,
   protocol terminals.protocols not null,
   terminal_id bigint not null,
   data bytea not null,
-  answer_id bigint,
+  answer_id timestamptz,
 
   constraint zidx_data_pk primary key(id),
   constraint zidx_data_fk_parent foreign key(parent_id) references data.packets(id) on delete cascade,
   constraint zidx_data_fk_server foreign key(server_id) references replica.servers(id) on delete cascade
 );
-create index zidx_data_ik_dbtime_server on replica.data(dbtime, server_id) where answer_id is null;
-create index zidx_data_ik_dbtime_server_terminal on replica.data(dbtime, server_id, terminal_id) where answer_id is null;
+create index zidx_data_ik_dbtime_server on replica.data(id, server_id) where answer_id is null;
+create index zidx_data_ik_dbtime_server_terminal on replica.data(id, server_id, terminal_id) where answer_id is null;
 create index zidx_data_ik_answer on replica.data(answer_id);
 create index zidx_data_ik_parent on replica.data(parent_id);
+create trigger insertb_zz_correct_id
+  before insert on replica.data for each row
+  when (checking.is_value_presents('replica', 'data', 'id', new.id))
+  execute procedure triggers.correct_timestamp_id();
 
 create table replica.answers(
-  id bigint,
-  dbtime timestamp with time zone default now(),
-  connection_id bigint not null,
+  id timestamptz default current_timestamp,
+  connection_id timestamptz not null,
   data bytea not null,
 
   constraint zidx_answers_pk primary key(id),
@@ -96,13 +98,17 @@ create table replica.answers(
 );
 create index zidx_answers_ik_connection on replica.answers(connection_id);
 alter table replica.data add constraint zidx_data_fk_answer foreign key(answer_id) references replica.answers(id) on delete cascade;
+create trigger insertb_zz_correct_id
+  before insert on replica.answers for each row
+  when (checking.is_value_presents('replica', 'answers', 'id', new.id))
+  execute procedure triggers.correct_timestamp_id();
 
 create table replica.issues(
   id bigint,
-  dbtime timestamp with time zone default now(),
+  dbtime timestamptz default current_timestamp,
   server_id bigint not null,
   packets_ids bigint[] not null,
-  connection_id bigint not null,
+  connection_id timestamptz not null,
   issue replica.issue not null,
 
   constraint zidx_issues_pk primary key(id),
@@ -110,22 +116,6 @@ create table replica.issues(
   constraint zidx_issues_fk_connection foreign key(connection_id) references data.connections(id) on delete cascade
 );
 create index zidx_answer_ik_connection_dbtime on replica.issues(connection_id, dbtime);
-
-create trigger insertb_00_reject
-  before insert on replica.data for each row
-  when (new.id is not null)
-  execute procedure triggers.reject();
-
-create trigger insertb_00_set_id
-  before insert on replica.data for each row
-  when (new.id is null)
-  execute procedure triggers.set_id();
-
-create rule add_answer as on insert to replica.data where (new.id is not null)
-  do also
-    update replica.data
-    set answer_id=new.answer_id
-    where id=new.id;
 
 create trigger insertb_00_set_id
   before insert on replica.servers for each row
@@ -141,12 +131,6 @@ create trigger insertb_00_set_id
   before insert on replica.exclude_rules for each row
   when (new.id is null)
   execute procedure triggers.set_id();
-
-create trigger insertb_00_set_id
-  before insert on replica.answers for each row
-  when (new.id is null)
-  execute procedure triggers.set_id();
-
 
 create trigger insertb_00_set_id
   before insert on replica.issues for each row

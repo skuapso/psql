@@ -1,35 +1,23 @@
 --------------------------------------------------------------------------------
 -- data.connections
 --------------------------------------------------------------------------------
-create sequence data.seq_connections;
 create table data.connections(
-  id bigint,
+  id timestamptz not null default current_timestamp,
   protocol terminals.protocols not null,
-  started timestamp with time zone not null default now(),
-  ended timestamp with time zone default null,
+  ended timestamptz default null,
   type connections.types not null,
   terminal_id bigint,
 
   constraint zidx_connections_pk primary key(id),
   constraint zidx_connections_fk_terminal foreign key(terminal_id) references terminals.data(id) on delete set null
 );
-create index zidx_connections_ik_time on data.connections(started, ended);
 create index zidx_connections_ik_terminal on data.connections(terminal_id);
 comment on table data.connections is 'table for connections';
 
-create trigger insertb_00_set_id
-  before insert
-  on data.connections
-  for each row
-  when (new.id is null)
-  execute procedure triggers.set_id();
-
-create trigger insertb_00_reject
-  before insert
-  on data.connections
-  for each row
-  when (new.id is not null)
-  execute procedure triggers.reject();
+create trigger insertb_zz_correct_id
+  before insert on data.connections for each row
+  when (checking.is_value_presents('data', 'connections', 'id', new.id))
+  execute procedure triggers.correct_timestamp_id();
 --------------------------------------------------------------------------------
 -- /data.connections
 --------------------------------------------------------------------------------
@@ -37,12 +25,11 @@ create trigger insertb_00_reject
 --------------------------------------------------------------------------------
 -- data.broken
 --------------------------------------------------------------------------------
-create sequence data.seq_broken;
 create table data.broken(
   like basic.binary_data including defaults including comments,
-  connection_id bigint not null,
+  connection_id timestamptz not null default current_timestamp,
   count bigint not null default 0,
-  last timestamp with time zone not null default now(),
+  last timestamptz not null default current_timestamp,
 
   constraint zidx_broken_pk primary key(id),
   constraint zidx_broken_fk_connection foreign key(connection_id) references data.connections(id) on delete cascade
@@ -60,10 +47,10 @@ create trigger insertb_00_check_data
   when (checking.is_value_presents('data', 'broken', 'data', new.data))
   execute procedure triggers.reject();
 
-create trigger insertb_00_set_id
+create trigger insertb_zz_correct_id
   before insert on data.broken for each row
-  when (new.id is null)
-  execute procedure triggers.set_id();
+  when (checking.is_value_presents('data', 'broken', 'id', new.id))
+  execute procedure triggers.correct_timestamp_id();
 --------------------------------------------------------------------------------
 -- /data.broken
 --------------------------------------------------------------------------------
@@ -71,14 +58,13 @@ create trigger insertb_00_set_id
 --------------------------------------------------------------------------------
 -- data.raws
 --------------------------------------------------------------------------------
-create sequence data.seq_raws;
 create table data.raws(
   like basic.binary_data including defaults including comments,
-  connection_id bigint not null,
+  connection_id timestamptz not null,
   count bigint not null default 0,
   answer bytea,
   answered varchar,
-  last timestamp with time zone not null default now(),
+  last timestamptz not null default current_timestamp,
 
   constraint zidx_raws_pk primary key(id),
   constraint zidx_raws_fk_connection foreign key(connection_id) references data.connections(id) on delete cascade
@@ -105,15 +91,10 @@ create trigger insertb_00_check_data
   when (checking.is_value_presents('data', 'raws', 'data', new.data))
   execute procedure triggers.reject();
 
-create trigger insertb_00_reject
+create trigger insertb_zz_correct_id
   before insert on data.raws for each row
-  when (new.id is not null)
-  execute procedure triggers.reject();
-
-create trigger insertb_00_set_id
-  before insert on data.raws for each row
-  when (new.id is null)
-  execute procedure triggers.set_id();
+  when (checking.is_value_presents('data', 'raws', 'id', new.id))
+  execute procedure triggers.correct_timestamp_id();
 --------------------------------------------------------------------------------
 -- /data.raws
 --------------------------------------------------------------------------------
@@ -121,13 +102,12 @@ create trigger insertb_00_set_id
 --------------------------------------------------------------------------------
 -- data.packets
 --------------------------------------------------------------------------------
-create sequence data.seq_packets;
 create table data.packets(
   like basic.binary_data including defaults including comments,
   count bigint not null default 0,
-  raw_id bigint not null,
+  raw_id timestamptz not null,
   type data.types not null,
-  last timestamp with time zone not null default now(),
+  last timestamptz not null default current_timestamp,
 
   constraint zidx_packets_pk primary key(id),
   constraint zidx_packets_fk_raw foreign key(raw_id) references data.raws(id) on delete cascade
@@ -150,10 +130,10 @@ create trigger insertb_00_check_data
   when (checking.is_value_presents('data', 'packets', 'data', new.data))
   execute procedure triggers.reject();
 
-create trigger insertb_00_set_id
+create trigger insertb_zz_correct_id
   before insert on data.packets for each row
-  when (new.id is null)
-  execute procedure triggers.set_id();
+  when (checking.is_value_presents('data', 'packets', 'id', new.id))
+  execute procedure triggers.correct_timestamp_id();
 --------------------------------------------------------------------------------
 -- /data.packets
 --------------------------------------------------------------------------------

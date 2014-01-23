@@ -1,6 +1,6 @@
 create table egts.navigation(
-  id bigint,
-  eventtime timestamp with time zone not null,
+  id timestamptz,
+  eventtime timestamptz not null,
   latitude real not null,
   longitude real not null,
   parking boolean not null,
@@ -20,13 +20,13 @@ create table egts.navigation(
   used bigint,
   navigation_systems egts.navigation_systems,
   state egts.states,
-  
+
   constraint zidx_navigation_pk primary key(id),
   constraint zidx_navigation_fk foreign key(id) references data.packets(id) on delete cascade
 );
 
 create table egts.digital_in(
-  id bigint,
+  id timestamptz,
   sensor bigint not null,
   value boolean not null,
 
@@ -35,7 +35,7 @@ create table egts.digital_in(
 );
 
 create table egts.digital_out(
-  id bigint,
+  id timestamptz,
   sensor bigint not null,
   value boolean not null,
 
@@ -44,7 +44,7 @@ create table egts.digital_out(
 );
 
 create table egts.analog(
-  id bigint,
+  id timestamptz,
   sensor bigint not null,
   value real not null,
   constraint zidx_analog_pk primary key(id, sensor),
@@ -52,7 +52,7 @@ create table egts.analog(
 );
 
 create table egts.counter(
-  id bigint,
+  id timestamptz,
   sensor bigint not null,
   value boolean not null,
 
@@ -61,52 +61,52 @@ create table egts.counter(
 );
 
 create table egts.boolean_sensor(
-  id bigint,
+  id timestamptz,
   sensor egts.boolean_sensors not null,
   value boolean not null,
-  
+
   constraint zidx_boolean_sensor_pk primary key(id, sensor),
   constraint zidx_boolean_sensor_fk foreign key(id) references egts.navigation(id) on delete cascade
 );
 
 create table egts.float_sensor(
-  id bigint,
+  id timestamptz,
   sensor egts.float_sensors not null,
   value boolean not null,
-  
+
   constraint zidx_float_sensor_pk primary key(id, sensor),
   constraint zidx_float_sensor_fk foreign key(id) references egts.navigation(id) on delete cascade
 );
 
 create table egts.loop_in_sensor(
-  id bigint,
+  id timestamptz,
   sensor bigint not null,
   value boolean not null,
-  
+
   constraint zidx_loop_in_pk primary key(id, sensor),
   constraint zidx_loop_in_fk foreign key(id) references egts.navigation(id) on delete cascade
 );
 
 create table egts.lls(
-  id bigint,
+  id timestamptz,
   sensor bigint not null,
   value boolean not null,
-  
+
   constraint zidx_lls_pk primary key(id, sensor),
   constraint zidx_lls_fk foreign key(id) references egts.navigation(id) on delete cascade
 );
 
 create table egts.lls_port(
-  id bigint,
+  id timestamptz,
   sensor bigint not null,
   value boolean not null,
-  
+
   constraint zidx_lls_port_pk primary key(id, sensor),
   constraint zidx_lls_port_fk foreign key(id) references egts.navigation(id) on delete cascade
 );
 
 create table egts.passengers_bin(
-  id bigint,
+  id timestamptz,
   port bigint not null,
   doors_present bigint not null,
   doors_released bigint not null,
@@ -117,7 +117,7 @@ create table egts.passengers_bin(
 );
 
 create table egts.passengers_in(
-  id bigint,
+  id timestamptz,
   sensor bigint not null,
   value bigint not null,
 
@@ -126,7 +126,7 @@ create table egts.passengers_in(
 );
 
 create table egts.passengers_out(
-  id bigint,
+  id timestamptz,
   sensor bigint not null,
   value bigint not null,
 

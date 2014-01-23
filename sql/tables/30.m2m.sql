@@ -1,6 +1,6 @@
 create table m2m.navigation(
-  id bigint,
-  eventtime timestamp with time zone not null,
+  id timestamptz,
+  eventtime timestamptz not null,
   latitude navigation.coords_gm not null,
   longitude navigation.coords_gm not null,
   speed real not null,
@@ -16,8 +16,8 @@ create table m2m.navigation(
 );
 
 create table m2m.active(
-  id bigint,
-  eventtime timestamp with time zone not null,
+  id timestamptz,
+  eventtime timestamptz not null,
   msg_id bigint not null,
 
   constraint zidx_active_pk primary key (id),

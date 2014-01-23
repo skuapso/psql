@@ -74,11 +74,11 @@ begin
   return u;
 end $$ language plpgsql immutable;
 
-create function terminal.last_connection(_terminal_id bigint) returns bigint as $$
+create function terminal.last_connection(_terminal_id bigint) returns timestamptz as $$
 declare
-  i bigint;
+  i timestamptz;
 begin
-  select id into i from data.connections where terminal_id=$1 order by started desc limit 1;
+  select id into i from data.connections where terminal_id=$1 order by id desc limit 1;
   return i;
 end $$ language plpgsql stable;
 

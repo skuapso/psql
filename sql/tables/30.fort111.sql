@@ -6,9 +6,9 @@ create type fort111.protocols as enum('2', '4');
 create type fort111.gsm_sensors as enum('no', 'mmc', 'mnc', 'lac', 'cell_id');
 
 create table fort111.navigation(
-  id bigint,
+  id timestamptz,
   protocol fort111.protocols not null,
-  terminal_eventtime timestamp with time zone,
+  terminal_eventtime timestamptz,
   internal_power real,
   external_power real,
   latitude navigation.coords_gm,
@@ -16,7 +16,7 @@ create table fort111.navigation(
   speed real,
   course real,
   altitude real,
-  eventtime timestamp with time zone,
+  eventtime timestamptz,
   turn_on boolean,
   valid boolean,
   visible bigint,
@@ -30,16 +30,16 @@ create table fort111.navigation(
 );
 
 create table fort111.signal(
-  id bigint,
+  id timestamptz,
   sensor fort111.transmitters not null,
   value real not null,
- 
+
   constraint zidx_signal_pk primary key(id, sensor),
   constraint zidx_signal_fk foreign key(id) references fort111.navigation(id) on delete cascade
 );
 
 create table fort111.gsm_info(
-  id bigint,
+  id timestamptz,
   no bigint not null,
   mmc bigint not null,
   mnc bigint not null,
@@ -51,7 +51,7 @@ create table fort111.gsm_info(
 );
 
 create table fort111.boolean_sensor(
-  id bigint,
+  id timestamptz,
   sensor fort111.boolean_sensors not null,
   value boolean not null,
 
@@ -60,7 +60,7 @@ create table fort111.boolean_sensor(
 );
 
 create table fort111.integer_sensor(
-  id bigint,
+  id timestamptz,
   sensor fort111.integer_sensors not null,
   value bigint not null,
 
@@ -69,7 +69,7 @@ create table fort111.integer_sensor(
 );
 
 create table fort111.float_sensor(
-  id bigint,
+  id timestamptz,
   sensor fort111.float_sensors not null,
   value real not null,
 
@@ -78,7 +78,7 @@ create table fort111.float_sensor(
 );
 
 create table fort111.digital_in(
-  id bigint,
+  id timestamptz,
   sensor bigint not null,
   value boolean not null,
 
@@ -87,7 +87,7 @@ create table fort111.digital_in(
 );
 
 create table fort111.digital_out(
-  id bigint,
+  id timestamptz,
   sensor bigint not null,
   value boolean not null,
 
@@ -96,7 +96,7 @@ create table fort111.digital_out(
 );
 
 create table fort111.analog(
-  id bigint,
+  id timestamptz,
   sensor bigint not null,
   value real not null,
 
@@ -105,7 +105,7 @@ create table fort111.analog(
 );
 
 create table fort111.counter(
-  id bigint,
+  id timestamptz,
   sensor bigint not null,
   value bigint not null,
 
@@ -114,7 +114,7 @@ create table fort111.counter(
 );
 
 create table fort111.lls(
-  id bigint,
+  id timestamptz,
   sensor bigint not null,
   value bigint not null,
 
@@ -123,7 +123,7 @@ create table fort111.lls(
 );
 
 create table fort111.can_lls(
-  id bigint,
+  id timestamptz,
   sensor bigint not null,
   value real not null,
 
@@ -132,7 +132,7 @@ create table fort111.can_lls(
 );
 
 create table fort111.can(
-  id bigint,
+  id timestamptz,
   speed real,
   rpm real,
   fuel_consumption real,
@@ -145,7 +145,7 @@ create table fort111.can(
 );
 
 create table fort111.one_wire(
-  id bigint,
+  id timestamptz,
   sensor bigint not null,
   value bigint not null,
 

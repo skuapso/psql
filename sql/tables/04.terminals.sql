@@ -41,11 +41,11 @@ create trigger insertb_00_set_id
 create sequence terminals.seq_commands;
 create table terminals.commands(
   id bigint,
-  dbtime timestamp with time zone not null default now(),
+  dbtime timestamptz not null default current_timestamp,
   terminal_id bigint not null,
   command bytea not null,
   type terminals.command_send_type not null default 'answer',
-  executed timestamp with time zone,
+  executed timestamptz,
 
   constraint zidx_commands_pk primary key(id)
 );

@@ -1,5 +1,5 @@
 create table connections.ip_data(
-  id bigint not null,
+  id timestamptz not null,
   local_ip inet not null,
   local_port bigint not null,
   remote_ip inet not null,

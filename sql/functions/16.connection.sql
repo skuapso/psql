@@ -1,4 +1,4 @@
-create function connection.protocol(_id bigint) returns terminals.protocols as $$
+create function connection.protocol(_id timestamptz) returns terminals.protocols as $$
 declare
   p terminals.protocols;
 begin
@@ -6,7 +6,7 @@ begin
   return p;
 end $$ language plpgsql stable;
 
-create function connection.local_port(_id bigint) returns bigint as $$
+create function connection.local_port(_id timestamptz) returns bigint as $$
 declare
   p bigint;
 begin
@@ -14,7 +14,7 @@ begin
   return p;
 end $$ language plpgsql stable;
 
-create function connection.terminal(_id bigint) returns bigint as $$
+create function connection.terminal(_id timestamptz) returns bigint as $$
 declare
   t bigint;
 begin

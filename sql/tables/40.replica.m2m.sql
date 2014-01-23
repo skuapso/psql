@@ -1,9 +1,8 @@
-create sequence replica.seq_m2m;
 create table replica.m2m(
-  id bigint,
+  id timestamptz default current_timestamp,
   type data.types not null,
   terminal_id bigint not null,
-  eventtime timestamp with time zone not null,
+  eventtime timestamptz not null,
   latitude navigation.coords_gm not null,
   longitude navigation.coords_gm not null,
   used bigint not null default 0,
@@ -13,21 +12,18 @@ create table replica.m2m(
   action bigint not null default 0,
   reboot bigint not null default 0,
 
-  constraint zidx_m2m_pk primary key(id),
-  constraint zudx_m2m_fk_id foreign key (id) references data.packets(id) on delete cascade,
-  constraint zidx_m2m_fk_terminal foreign key (terminal_id) references terminals.data(id) on delete cascade
+  constraint zidx_m2m_pk primary key(id)
+  ,constraint zidx_m2m_fk_terminal foreign key (terminal_id) references terminals.data(id) on delete cascade
 );
-
-create trigger insertb_00_set_id
-  before insert on replica.m2m
-  for each row
-  when (new.id is null)
-  execute procedure triggers.set_id();
+create trigger insertb_zz_correct_id
+  before insert on replica.m2m for each row
+  when (checking.is_value_presents('replica', 'm2m', 'id', new.id))
+  execute procedure triggers.correct_timestamp_id();
 
 create function replica.m2m(
   _type data.types,
   _terminal_id bigint,
-  _eventtime timestamp with time zone,
+  _eventtime timestamptz,
   _latitude navigation.coords_gm,
   _longitude navigation.coords_gm,
   _used bigint,
@@ -44,7 +40,7 @@ declare
   act bigint;
   re bigint;
   diff real;
-  et timestamp with time zone;
+  et timestamptz;
 begin
   tr = 0;
   act = x'20'::bigint;
@@ -125,7 +121,7 @@ begin
       where t.terminal_id=_terminal_id and t.eventtime>_eventtime and t.eventtime<et;
     end if;
   end if;
-  
+
   raise notice 'returning track: %, action: %, reboot: %', tr, act, re;
   return query select floor(tr / 100)::bigint,act::bigint,re::bigint;
 
@@ -133,8 +129,8 @@ begin
   where t.terminal_id=_terminal_id and t.type = _type and t.eventtime<=_eventtime;
 
   insert into replica.m2m
-  values (null, _type, _terminal_id,
-    _eventtime, _latitude, _longitude, 
+  values (default, _type, _terminal_id,
+    _eventtime, _latitude, _longitude,
     _used, _speed, _course,
     tr, act, re);
 end $$ language plpgsql;

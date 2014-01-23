@@ -26,6 +26,19 @@ begin
   end if;
   return false;
 end $$ language plpgsql stable;
+create function checking.is_value_presents(_schema varchar, _table varchar, _column varchar, _value timestamptz) returns bool as $$
+declare
+  c timestamptz;
+begin
+  if $4 is null then
+    return true;
+  end if;
+  execute 'select ' || $3 || ' from ' || $1 || '.' || $2 || ' where ' || $3 || E'=\'' || $4 || E'\' limit 1' into c;
+  if c=$4 then
+    return true;
+  end if;
+  return false;
+end $$ language plpgsql stable;
 
 create function checking.is_data_exists(_object_id bigint, _eventtime timestamp with time zone) returns bool as $$
 begin

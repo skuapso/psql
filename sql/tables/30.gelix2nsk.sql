@@ -1,13 +1,13 @@
 create type gelix2nsk.sensors as enum('last_valid', 'restart_hw_fail', 'coldstart', 'zone_alarm');
 
 create table gelix2nsk.navigation(
-  id bigint,
+  id timestamptz,
   msg_id bigint not null,
   action_id bigint not null,
   latitude navigation.coords_gm not null,
   longitude navigation.coords_gm not null,
   altitude real not null,
-  eventtime timestamp with time zone not null,
+  eventtime timestamptz not null,
   speed real not null,
   course real not null,
   used bigint not null,
@@ -23,7 +23,7 @@ create table gelix2nsk.navigation(
 );
 
 create table gelix2nsk.digital_in(
-  id bigint,
+  id timestamptz,
   sensor bigint not null,
   value boolean not null,
 
@@ -32,7 +32,7 @@ create table gelix2nsk.digital_in(
 );
 
 create table gelix2nsk.digital_out(
-  id bigint,
+  id timestamptz,
   sensor bigint not null,
   value boolean not null,
 
@@ -41,7 +41,7 @@ create table gelix2nsk.digital_out(
 );
 
 create table gelix2nsk.analog(
-  id bigint,
+  id timestamptz,
   sensor bigint not null,
   value real not null,
 
@@ -50,7 +50,7 @@ create table gelix2nsk.analog(
 );
 
 create table gelix2nsk.sensor(
-  id bigint,
+  id timestamptz,
   sensor gelix2nsk.sensors not null,
   value bigint not null,
 

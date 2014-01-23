@@ -1,11 +1,11 @@
 create table agis.navigation(
-  id bigint,
+  id timestamptz,
   msg_id bigint not null,
   action_id bigint not null,
   latitude navigation.coords_gm not null,
   longitude navigation.coords_gm not null,
   altitude real not null,
-  eventtime timestamp with time zone not null,
+  eventtime timestamptz not null,
   speed real not null,
   course real not null,
   used bigint not null,

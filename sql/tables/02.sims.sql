@@ -1,6 +1,6 @@
 create table sims.data(
   no bigint,
-  created timestamp with time zone not null default now(),
+  created timestamptz not null default current_timestamp,
   address inet not null,
   authorized boolean not null default true,
 
@@ -13,8 +13,8 @@ create table sims.sessions(
   nas_session_id varchar not null,
   nas_port bigint not null,
   sim_id bigint not null,
-  started timestamp with time zone not null default now(),
-  updated timestamp with time zone not null default now(),
+  started timestamptz not null default current_timestamp,
+  updated timestamptz not null default current_timestamp,
   bytes_in bigint not null default 0,
   bytes_out bigint not null default 0,
   packets_in bigint not null default 0,

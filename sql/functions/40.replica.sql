@@ -1,4 +1,4 @@
-create function replica.servers(_connection_id bigint) returns table(
+create function replica.servers(_connection_id timestamptz) returns table(
   server_id bigint,
   server_protocol terminals.protocols) as $$
 declare
@@ -8,7 +8,7 @@ begin
   return query select * from replica.servers(_terminal_id, connection_id);
 end $$ language plpgsql;
 
-create or replace function replica.servers(_terminal_id bigint, _connection_id bigint) returns table(
+create or replace function replica.servers(_terminal_id bigint, _connection_id timestamptz) returns table(
   server_id bigint,
   server_protocol terminals.protocols) as $$
 declare
@@ -115,7 +115,7 @@ begin
       select D.server_id,D.protocol,terminal.protocols(D.terminal_id) as tproto,terminal.uin(D.terminal_id) as tuin
       from replica.data D
       where answer_id is null
-      order by dbtime limit 1) as S;
+      order by id limit 1) as S;
 end $$ language plpgsql;
 
 create function replica.data(_server_id bigint) returns table(
@@ -129,5 +129,5 @@ begin
       select D.server_id,D.protocol,terminal.protocols(D.terminal_id) as tproto,terminal.uin(D.terminal_id) as tuin
       from replica.data D
       where answer_id is null and D.server_id=$1
-      order by dbtime limit 1) as S;
+      order by id limit 1) as S;
 end $$ language plpgsql;

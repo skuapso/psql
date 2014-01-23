@@ -1,4 +1,4 @@
-create function packet.terminal(_packet_id bigint) returns bigint as $$
+create function packet.terminal(_packet_id timestamptz) returns bigint as $$
 declare
   i bigint;
 begin
@@ -10,7 +10,7 @@ begin
   return i;
 end $$ language plpgsql stable;
 
-create function packet.type(_packet_id bigint) returns data.types as $$
+create function packet.type(_packet_id timestamptz) returns data.types as $$
 declare
   t data.types;
 begin

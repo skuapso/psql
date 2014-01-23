@@ -65,3 +65,33 @@ begin
   new.terminal_id = terminal.get(new.terminal_id, tg_table_schema);
   return new;
 end $$ language plpgsql;
+--------------------------------------------------------------------------------
+-- корректирует timestamp id
+--------------------------------------------------------------------------------
+create function triggers.correct_timestamp_id() returns trigger as $$
+declare
+  c timestamptz;
+  t timestamptz;
+  i bigint;
+begin
+  execute 'select id from ' || tg_table_schema || '.' || tg_table_name ||
+      E' where id=(timestamptz \'' || new.id || E'\' - interval \'0.000001\') limit 1' into c;
+  if c is null then
+    new.id = new.id - interval '0.000001';
+  else
+    i = 1;
+    c = null;
+    loop
+      t = new.id + ('0.00000' || i)::interval;
+      execute 'select id from ' || tg_table_schema || '.' || tg_table_name ||
+          E' where id=\'' || t || E'\' limit 1' into c;
+      if c is null then
+        new.id = t;
+        exit;
+      end if;
+      i = i + 1;
+      c = null;
+    end loop;
+  end if;
+  return new;
+end $$ language plpgsql;

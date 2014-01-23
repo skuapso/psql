@@ -1,12 +1,12 @@
 create type fort300.sensors as enum('started');
 
 create table fort300.navigation (
-  id bigint,
+  id timestamptz,
   action_id bigint not null,
   latitude navigation.coords_gm,
   longitude navigation.coords_gm,
   altitude real,
-  eventtime timestamp with time zone not null,
+  eventtime timestamptz not null,
   speed real not null default 0,
   course real not null default 0,
   visible bigint not null default 0,
@@ -23,16 +23,16 @@ create table fort300.navigation (
 );
 
 create table fort300.sensor(
-  id bigint,
+  id timestamptz,
   sensor fort300.sensors not null,
-  value timestamp with time zone not null,
+  value timestamptz not null,
 
   constraint zidx_sensor_pk primary key(id, sensor),
   constraint zidx_sensor_fk foreign key(id) references fort300.navigation(id) on delete cascade
 );
 
 create table fort300.digital_in(
-  id bigint,
+  id timestamptz,
   sensor bigint not null,
   value boolean not null,
 
@@ -41,7 +41,7 @@ create table fort300.digital_in(
 );
 
 create table fort300.digital_out(
-  id bigint,
+  id timestamptz,
   sensor bigint not null,
   value boolean not null,
 
@@ -50,7 +50,7 @@ create table fort300.digital_out(
 );
 
 create table fort300.analog(
-  id bigint,
+  id timestamptz,
   sensor bigint not null,
   value real not null,
 
@@ -59,7 +59,7 @@ create table fort300.analog(
 );
 
 create table fort300.counter(
-  id bigint,
+  id timestamptz,
   sensor bigint not null,
   value bigint not null,
 
@@ -68,7 +68,7 @@ create table fort300.counter(
 );
 
 create table fort300.lls(
-  id bigint,
+  id timestamptz,
   sensor bigint not null,
   value bigint not null,
 
@@ -77,7 +77,7 @@ create table fort300.lls(
 );
 
 create table fort300.lls_freq(
-  id bigint,
+  id timestamptz,
   sensor bigint not null,
   value real not null,
 
@@ -86,7 +86,7 @@ create table fort300.lls_freq(
 );
 
 create table fort300.lls_temp(
-  id bigint,
+  id timestamptz,
   sensor bigint not null,
   value real not null,
 
@@ -95,7 +95,7 @@ create table fort300.lls_temp(
 );
 
 create table fort300.rfid(
-  id bigint,
+  id timestamptz,
   sensor bigint not null,
   value bigint not null,
 

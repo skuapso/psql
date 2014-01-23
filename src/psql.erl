@@ -170,7 +170,7 @@ get(_Pid, replica, data, {ServerID, Terminal, Points}, Timeout) ->
       end,
       execute(1000, select, {replica, data,
                        [{server_id, ServerID},{terminal_id, TerminalID}, {answer_id, null}],
-                       [{order, "dbtime"}, {limit, Points}]},
+                       [{order, "id"}, {limit, Points}]},
               Timeout)),
   {ok, {?MODULE, Reply}};
 get(_Pid, replica, undelivered, [], Timeout) ->
@@ -225,7 +225,8 @@ set(_Pid, replica, answer, {DataIDs, Answer}, Timeout) ->
         {connection_id, ConnectionID}
         ]}, Timeout),
   lists:map(fun(X) ->
-        execute(1000, insert, {replica, data, [{id, X}, {answer_id, AnswerID}]}, Timeout)
+        Query = "update replica.data set answer_id=$1 where id=$2 returning id",
+        execute(1000, execute, {Query, [AnswerID, X]}, Timeout)
     end, DataIDs),
   hooks:set(answer_id, AnswerID),
   ok;

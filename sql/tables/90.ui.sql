@@ -1,4 +1,4 @@
-drop view ui.items_tree;
+drop view if exists ui.items_tree;
 create view ui.items_tree as(
 select array_to_json(array_agg(row_to_json)) as json from
   (select
