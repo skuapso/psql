@@ -50,14 +50,6 @@ end $$ language plpgsql;
 comment on function triggers.reject ()
   is 'отколняет добавление записи';
 --------------------------------------------------------------------------------
--- устанавливает id объекта по id терминала
---------------------------------------------------------------------------------
-create function triggers.set_object() returns trigger as $$
-begin
-  new.object_id = object.get(new.terminal_id);
-  return new;
-end $$ language plpgsql;
---------------------------------------------------------------------------------
 -- устанавливает id терминала по uin терминала и протоколу
 --------------------------------------------------------------------------------
 create function triggers.set_terminal_by_uin() returns trigger as $$

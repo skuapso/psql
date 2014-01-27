@@ -1,10 +1,16 @@
-create table objects.sensor_types(
-  id bigint
+create type sensors.types as enum ('digital', 'analog', 'counter', 'boolean');
+
+create sequence sensors.seq_models;
+create table sensors.models(
+  id bigint constraint zidx_models_pk primary key
+  ,type sensors.types not null
   ,title varchar not null
-
-  ,constraint zidx_sensor_types_pk primary key(id)
 );
 
-create table objects.sensors(
+create table sensors.data(
+  id bigint constraint zidx_data_pk primary key
+  ,model_id bigint
+    constraint zidx_data_fk_model
+    foreign key sensors.models
+  ,serial varchar
 );
-

@@ -18,7 +18,7 @@ declare
   _local_port bigint;
   _terminal_protocol terminals.protocols;
 begin
-  _object_id = object.get(_terminal_id);
+  _object_id = terminal.object(_terminal_id);
   _group_id = object.group(_object_id);
   _specialization_id = object.specialization(_object_id);
   _local_port = connection.local_port(_connection_id);

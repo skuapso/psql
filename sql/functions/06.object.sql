@@ -1,13 +1,4 @@
-create function object.get(_terminal_id bigint) returns bigint as $$
-declare
-  o bigint;
-begin
-  raise warning 'function object.get deprecated';
-  select id into o from objects.data where terminal_id=$1;
-  return o;
-end $$ language plpgsql stable;
-
-create function object.terminal(_object_id bigint, _time bigint) returns bigint as $$
+create function object.terminal(_object_id bigint, _time timestamptz) returns bigint as $$
 declare
   i bigint;
 begin
