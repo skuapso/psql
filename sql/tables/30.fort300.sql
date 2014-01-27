@@ -22,6 +22,25 @@ create table fort300.navigation (
   constraint zidx_navigation_fk foreign key(id) references data.packets(id) on delete cascade
 );
 
+create rule update_object_event
+  as on insert
+  to fort300.navigation
+  where (terminal.object(packet.terminal(new.id)) is not null)
+  do also
+    insert into events.data
+    (id, type, object_id, terminal_id, time, valid, location)
+    values (
+      new.id
+      ,packet.type(new.id)
+      ,terminal.object(packet.terminal(new.id))
+      ,packet.terminal(new.id)
+      ,new.eventtime
+      ,(new.used > 3)
+      ,('POINTZ(' || new.longitude::float
+          || ' ' || new.latitude::float
+          || ' ' || new.altitude || ')')::geography
+    );
+
 create table fort300.sensor(
   id timestamptz,
   sensor fort300.sensors not null,

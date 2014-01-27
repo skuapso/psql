@@ -2,8 +2,26 @@ create function object.get(_terminal_id bigint) returns bigint as $$
 declare
   o bigint;
 begin
+  raise warning 'function object.get deprecated';
   select id into o from objects.data where terminal_id=$1;
   return o;
+end $$ language plpgsql stable;
+
+create function object.terminal(_object_id bigint, _time bigint) returns bigint as $$
+declare
+  i bigint;
+begin
+  select terminal_id
+  into i
+  from objects.data
+  where id=$1
+  limit 1;
+  return i;
+end $$ language plpgsql immutable;
+
+create function object.terminal(_object_id bigint) returns bigint as $$
+begin
+  return object.terminal(_object_id, current_timestamp);
 end $$ language plpgsql stable;
 
 create function object.model_title(_model_id bigint) returns varchar as $$
@@ -58,7 +76,15 @@ begin
   return g;
 end $$ language plpgsql stable;
 
-create or replace function object.json(_group_id bigint) returns json as $$
+create function object.last_event_id(_object_id bigint) returns timestamptz as $$
+declare
+  e timestamptz;
+begin
+  select last_event_id into e from objects.data where id=$1;
+  return e;
+end $$ language plpgsql stable;
+
+create function object.json(_group_id bigint) returns json as $$
 declare
   r record;
 begin

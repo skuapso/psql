@@ -91,3 +91,20 @@ begin
   return query select C.id,C.command,C.type from terminals.commands C
   where terminal_id=$1 and executed is null order by dbtime desc limit 1;
 end $$ language plpgsql stable;
+
+create function terminal.object(_terminal_id bigint) returns bigint as $$
+begin
+  return terminal.object($1, current_timestamp);
+end $$ language plpgsql stable;
+
+create function terminal.object(_terminal_id bigint, _time timestamptz) returns bigint as $$
+declare
+  i bigint;
+begin
+  select id
+  into i
+  from objects.data
+  where terminal_id=$1
+  limit 1;
+  return i;
+end $$ language plpgsql immutable;

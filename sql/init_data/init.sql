@@ -24,7 +24,8 @@ insert into terminals.models(id, title, protocols) values
 
 insert into terminals.data(id, uin, serial_no, model_id, owner_id) values
   (null, 356307040370859, '356307040370859', 1, 1),
-  (null, 355915037037637, '355915037037637', 2, 1);
+  (null, 355915037037637, '355915037037637', 2, 1),
+  (null, 356896032934615, '356896032934615', 7, 1);
 
 insert into objects.groups(id, title, owner_id, parent_id) values
   (null, 'Блоки на тестировании', 4, null),
@@ -40,10 +41,12 @@ insert into objects.groups(id, title, owner_id, parent_id) values
 insert into objects.models(id, title) values
   (null, 'Белаз'),
   (null, 'Камаз');
- 
+
 insert into objects.data(id, no, terminal_id, model_id, owner_id, group_id)  values
-  (null, 'Леха', 1, 1, 1, 1),
-  (null, 'Test1', 2, 1, 1, 6);
+  (null, 'Леха', 1, 1, 1, 1)
+  ,(null, 'Test1', 2, 1, 1, 6)
+  ,(null, '356896032934615', 3, 1, 1, 1)
+  ;
 
 insert into replica.servers (owner_id, hostname, port, protocols, max_points, max_connections) values
   (1, 'localhost', 31004, '{"m2m"}', 10, 10),

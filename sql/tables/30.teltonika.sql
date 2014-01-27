@@ -21,6 +21,25 @@ create table teltonika.navigation(
   constraint zidx_parsed_fk foreign key(id) references data.packets(id) on delete cascade
 );
 
+create rule update_object_event
+  as on insert
+  to teltonika.navigation
+  where (terminal.object(packet.terminal(new.id)) is not null)
+  do also
+    insert into events.data
+    (id, type, object_id, terminal_id, time, valid, location)
+    values (
+      new.id
+      ,packet.type(new.id)
+      ,terminal.object(packet.terminal(new.id))
+      ,packet.terminal(new.id)
+      ,new.eventtime
+      ,(new.used > 3)
+      ,('POINTZ(' || new.longitude::float
+          || ' ' || new.latitude::float
+          || ' ' || new.altitude || ')')::geography
+    );
+
 create table teltonika.digital(
   id timestamptz not null,
   sensor bigint not null,

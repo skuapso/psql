@@ -66,7 +66,7 @@ begin
       re = prev.reboot;
     else
       if _used>3 and prev.used>3 then
-        diff = navigation.distance(_latitude, _longitude, prev.latitude, prev.longitude);
+        diff = navigation.distance(_longitude, _latitude, prev.longitude, prev.latitude);
       else
         diff = 0;
       end if;
@@ -105,12 +105,12 @@ begin
     limit 1;
 
     if _used > 3 and next.used > 3 then
-      diff = navigation.distance(_latitude,_longitude, next.latitude, next.longitude);
+      diff = navigation.distance(_longitude, _latitude, next.longitude, new.latitude);
     else
       diff = 0;
     end if;
     if prev is not null then
-      diff = navigation.distance(_latitude, _longitude, prev.latitude, prev.longitude)
+      diff = navigation.distance(_longitude, _latitude, prev.longitude, prev.latitude)
       + diff - (next.track - prev.track);
     end if;
     if et is null and diff<>0 then
