@@ -105,7 +105,7 @@ begin
     limit 1;
 
     if _used > 3 and next.used > 3 then
-      diff = navigation.distance(_longitude, _latitude, next.longitude, new.latitude);
+      diff = navigation.distance(_longitude, _latitude, next.longitude, next.latitude);
     else
       diff = 0;
     end if;

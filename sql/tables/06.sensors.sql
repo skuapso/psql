@@ -10,7 +10,6 @@ create table sensors.models(
 create table sensors.data(
   id bigint constraint zidx_data_pk primary key
   ,model_id bigint
-    constraint zidx_data_fk_model
-    foreign key sensors.models
+    constraint zidx_data_fk_model references sensors.models(id)
   ,serial varchar
 );
