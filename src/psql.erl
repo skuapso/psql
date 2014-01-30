@@ -55,13 +55,14 @@ connection_accepted(Pid, Proto, Socket, Timeout) when is_port(Socket) ->
   {ok, {LocalIP, LocalPort}} = inet:sockname(Socket),
   Query = "
   with data_id as (
-    insert into data.connections (protocol, type)
-      values ($1, 'ip')
+    insert into data.connections (id, protocol, type)
+      values ($1, $2, 'ip')
       returning id
   ) insert into connections.ip_data
-      select D.id, $2, $3, $4, $5
+      select D.id, $3, $4, $5, $6
         from data_id D returning id",
-  S = execute(1000, execute, {Query, [Proto, LocalIP, LocalPort, RemoteIP, RemotePort]}, Timeout),
+  ConnectionId = now2id(),
+  S = execute(1000, execute, {Query, [ConnectionId, Proto, LocalIP, LocalPort, RemoteIP, RemotePort]}, Timeout),
   debug ("returned ~w", [S]),
   {ok, ConnectionID} = S,
   hooks:set(Pid, connection_id, ConnectionID),
@@ -102,12 +103,14 @@ terminal_uin(_Pid, Module, UIN, Timeout) ->
 terminal_raw_data(_Pid, _Module, _UIN, RawData, Timeout) ->
   trace("terminal raw data"),
   ConnectionID = hooks:get(connection_id),
-  case execute(1000, insert, {data, raws, [{connection_id, ConnectionID}, {data,  RawData}]}, Timeout) of
+  RawID = now2id(),
+  case execute(1000, insert, {data, raws, [{id, RawID}, {connection_id, ConnectionID}, {data,  RawData}]}, Timeout) of
     {ok, 0} ->
       debug("data repeat"),
       hooks:delete(raw_id),
       stop;
     {ok, RawID} ->
+      debug("raw id is ~w", [RawID]),
       hooks:set(raw_id, RawID),
       ok
   end.
@@ -120,7 +123,7 @@ terminal_packet(_Pid, Module, UIN, Type, RawPacket, Packet, Timeout) ->
     D   -> {navigation, D}
   end,
   {ok, DataID} = insert_terminal_packet(PacketID, Module, Type, TableName, Data, Timeout),
-  debug("data id is ~w", [DataID]),
+  debug("packet id is ~w", [DataID]),
   {ok, DataID} = insert_terminal_packet(DataID, Module, Type,
                                         proplists:delete(TableName, Packet), Timeout),
   if
@@ -211,6 +214,7 @@ set(_Pid, replica, data, {ServerID, ServerProto, Data}, Timeout) ->
   PacketID = hooks:get(packet_id),
   TerminalID = hooks:get(terminal_id),
   execute(1000, insert, {replica, data, [
+        {id, now2id()},
         {parent_id, PacketID},
         {server_id, ServerID},
         {protocol, ServerProto},
@@ -221,6 +225,7 @@ set(_Pid, replica, data, {ServerID, ServerProto, Data}, Timeout) ->
 set(_Pid, replica, answer, {DataIDs, Answer}, Timeout) ->
   ConnectionID = hooks:get(connection_id),
   {ok, AnswerID} = execute(1000, insert, {replica, answers, [
+        {id, now2id()},
         {data, Answer},
         {connection_id, ConnectionID}
         ]}, Timeout),
@@ -325,7 +330,7 @@ insert_terminal_raw_packet(RawID, _RawPacket, _Type, _Timeout)
     ->
   {ok, 0};
 insert_terminal_raw_packet(RawID, RawPacket, Type, Timeout) ->
-  execute(1000, insert, {data, packets, [{raw_id, RawID}, {data, RawPacket}, {type, Type}]}, Timeout).
+  execute(1000, insert, {data, packets, [{id, now2id()}, {raw_id, RawID}, {data, RawPacket}, {type, Type}]}, Timeout).
 
 
 insert_terminal_packet(PacketID, _Module, Type, _Table, _Packet, _Timeout)
@@ -370,3 +375,8 @@ insert_terminal_packet_set_data(PacketID, Module, SetName, [{_, Value} | Else], 
 insert_terminal_packet_set_data(PacketID, Module, SetName, [{N, Value} | Else], Timeout) ->
   execute(1000, insert, {Module, SetName, [{id, PacketID}, {sensor, N}, {value, Value}]}, Timeout),
   insert_terminal_packet_set_data(PacketID, Module, SetName, Else, Timeout).
+
+now2id() ->
+  Now = {_, _, MicroSec} = erlang:now(),
+  {Date, {H, M, S}} = calendar:now_to_universal_time(Now),
+  {Date, {H, M, S + MicroSec/1000000}}.
