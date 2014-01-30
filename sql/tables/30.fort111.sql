@@ -35,17 +35,25 @@ create rule update_object_event
   where (terminal.object(packet.terminal(new.id)) is not null)
   do also
     insert into events.data
-    (id, type, object_id, terminal_id, time, valid, location)
+    (id, type, object_id, terminal_id, time, location)
     values (
       new.id
       ,packet.type(new.id)
       ,terminal.object(packet.terminal(new.id))
       ,packet.terminal(new.id)
-      ,new.eventtime
-      ,(new.used > 3)
-      ,('POINTZ(' || new.longitude::float
-          || ' ' || new.latitude::float
-          || ' ' || new.altitude || ')')::geography
+      ,case when new.eventtime is null then
+        new.terminal_eventtime
+      else
+        new.eventtime
+      end
+      ,case when new.used > 3 then
+        ('POINTZ('
+          || new.longitude::float || ' '
+          || new.latitude::float || ' '
+          || new.altitude || ')')::geography
+      else
+        null
+      end
     );
 
 create table fort111.signal(

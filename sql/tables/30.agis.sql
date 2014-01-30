@@ -25,15 +25,19 @@ create rule update_object_event
   where (terminal.object(packet.terminal(new.id)) is not null)
   do also
     insert into events.data
-    (id, type, object_id, terminal_id, time, valid, location)
+    (id, type, object_id, terminal_id, time, location)
     values (
       new.id
       ,packet.type(new.id)
       ,terminal.object(packet.terminal(new.id))
       ,packet.terminal(new.id)
       ,new.eventtime
-      ,(new.used > 3)
-      ,('POINTZ(' || new.longitude::float
-          || ' ' || new.latitude::float
-          || ' ' || new.hmet || ')')::geography
+      ,case when new.used > 3 then
+        ('POINTZ('
+        || new.longitude::float || ' '
+        || new.latitude::float || ' '
+        || new.hmet || ')')::geography
+      else
+        null
+      end
     );

@@ -1,71 +1,83 @@
 create table events.data(
-  id timestamptz default current_timestamp
+  id timestamptz
+    default current_timestamp
     constraint zidx_data_pk primary key
-  ,type data.types not null
-  ,object_id bigint not null
-  ,terminal_id bigint not null
-  ,time timestamptz not null
+  ,type data.types
+    not null
+  ,object_id bigint
+    not null
+  ,terminal_id bigint
+    not null
+  ,time timestamptz
+    not null
+  ,location geography
   ,valid boolean
-  ,location geography(pointz, 4326)
+    not null
+    default true
   ,next timestamptz
+    constraint zidx_data_fk_next references events.data(id) initially deferred
+    constraint zidx_data_uk_next unique initially deferred
   ,prev timestamptz
-
-  ,constraint zidx_data_uk_object_time unique(time, object_id)
+    constraint zidx_data_fk_prev references events.data(id) initially deferred
+    constraint zidx_data_uk_prev unique initially deferred
 );
-create index zidx_data_ik_object_time on events.data(object_id, time);
+create unique index zidx_data_uk_object_time_valid
+on events.data(object_id, time)
+where valid;
+create index zidx_data_uk_object_time_not_valid
+on events.data(object_id, time)
+where not valid;
+
 alter table objects.data
   add last_event_id timestamptz
-  constraint zidx_data_fk_last_event references events.data(id);
+  constraint zidx_data_fk_last_event references events.data(id) on delete cascade;
 
-create trigger insertb_00_check_object
+create table events.sensors(
+  id timestamptz
+    constraint zidx_sensors_pk primary key
+    constraint zidx_sensors_fk references events.data(id)
+  ,sensor_id bigint
+    not null
+    constraint zidx_data_fk_sensor references sensors.data(id)
+  ,value varchar
+    not null
+);
+
+create trigger pre_i_00_check_object
   before insert
   on events.data
   for each row
   when (new.object_id is null)
   execute procedure triggers.reject();
 
-create trigger insertb_05_check_time
+create trigger pre_i_04_check_time
   before insert
   on events.data
   for each row
-  when (checking.is_value_presents(
-    'events'::varchar, 'data'::varchar,
-    array['time', 'object_id']::varchar[],
-    array[E'\'' || new.time || E'\'', new.object_id]::varchar[]
-  ))
-  execute procedure triggers.reject();
-
-create trigger insertb_10_check_time
-  before insert
-  on events.data
-  for each row
-  when (new.time>(current_timestamp + interval '0:0:2'))
+  when (new.time > new.id)
   execute procedure event.set_not_valid();
 
-create trigger insertb_20_set_neighbours
+create trigger pre_i_05_check_presence
+  before insert
+  on events.data
+  for each row
+  when (new.valid and checking.is_value_presents(
+    'events'::varchar, 'data'::varchar,
+    array['time', 'object_id', 'valid']::varchar[],
+    array[E'\'' || new.time || E'\'', new.object_id, true]::varchar[]
+  ))
+  execute procedure event.set_not_valid();
+
+create trigger pre_i_20_set_neighbours
   before insert
   on events.data
   for each row
   when (new.valid)
   execute procedure event.set_neighbours();
 
-create trigger inserta_30_update_prev
+create trigger post_i_40_update_object
   after insert
   on events.data
   for each row
-  when (new.prev is not null)
-  execute procedure event.update_prev();
-
-create trigger inserta_30_update_next
-  after insert
-  on events.data
-  for each row
-  when (new.next is not null)
-  execute procedure event.update_next();
-
-create trigger inserta_40_update_object
-  after insert
-  on events.data
-  for each row
-  when (new.next is null and new.valid)
+  when (new.next is null and (new.id>new.time) and new.valid)
   execute procedure event.update_object();

@@ -29,7 +29,7 @@ end $$ language plpgsql;
 create or replace function triggers.notify ()
                     returns trigger as $$
 begin
-  raise warning 'async notify trigger % % on %.%',
+  raise notice 'async notify trigger % % on %.%',
     tg_argv[0], tg_argv[1], tg_table_schema, tg_table_name;
   perform system.notify (tg_argv[0], tg_argv[1]);
   if lower (tg_when) = 'before' then
@@ -85,5 +85,13 @@ begin
       c = null;
     end loop;
   end if;
+  return new;
+end $$ language plpgsql;
+--------------------------------------------------------------------------------
+-- печатает new
+--------------------------------------------------------------------------------
+create function triggers.print_new() returns trigger as $$
+begin
+  raise warning 'new is %', new;
   return new;
 end $$ language plpgsql;

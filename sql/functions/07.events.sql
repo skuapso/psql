@@ -1,11 +1,5 @@
-create function events.timediff(t1 timestamp with time zone, t2 timestamp with time zone)
+create function events.timediff(e1 timestamptz, e2 timestamptz)
 returns interval as $$
 begin
-  return t1 - t2;
-end $$ language plpgsql immutable;
-
-create function event.set_not_valid() returns trigger as $$
-begin
-  new.valid = false;
-  return new;
-end $$ language plpgsql;
+  return event.time($1) - event.time($2);
+end $$ language plpgsql stable;
