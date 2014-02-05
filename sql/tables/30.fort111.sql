@@ -1,6 +1,6 @@
 create type fort111.boolean_sensors as enum ('penetration', 'ignition', 'glonass', 'gps');
 create type fort111.integer_sensors as enum ('boot_no', 'rfid');
-create type fort111.float_sensors as enum ('runned');
+create type fort111.float_sensors as enum ('runned', 'hdop');
 create type fort111.transmitters as enum ('gsm', 'wifi');
 create type fort111.protocols as enum('2', '4');
 create type fort111.gsm_sensors as enum('no', 'mmc', 'mnc', 'lac', 'cell_id');
