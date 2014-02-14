@@ -5,6 +5,10 @@ create type terminals.command_send_type as enum(
   'immediately',
   'answer'
 );
+create type terminal.port_types as enum(
+  'digital'
+  ,'speed'
+);
 
 create function terminal.add(
   _terminal_uin bigint,

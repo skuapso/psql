@@ -1,18 +1,18 @@
+create sequence sensors.seq_types;
 create table sensors.types(
   id bigint
-    not null
     constraint zidx_types_pk primary key
-  ,purpose sensor.purposes
+  ,port_type terminal.port_types
     not null
-  ,virtual boolean
+  ,data_type varchar
     not null
-  ,title varchar
-    not null
-    constraint zidx_types_uk_title unique
 );
-create unique index zidx_types_uk_purpose
-on sensors.types(purpose)
-where virtual;
+create trigger insertb_50_set_id
+  before insert
+  on sensors.types
+  for each row
+  when (new.id is null)
+  execute procedure triggers.set_id();
 
 create sequence sensors.seq_models;
 create table sensors.models(
@@ -21,10 +21,20 @@ create table sensors.models(
   ,type_id bigint
     not null
     constraint zidx_models_fk_type references sensors.types(id)
+  ,virtual boolean
+    not null
   ,title varchar
     not null
 );
 
+create trigger insertb_50_set_id
+  before insert
+  on sensors.models
+  for each row
+  when (new.id is null)
+  execute procedure triggers.set_id();
+
+create sequence sensors.seq_data;
 create table sensors.data(
   id bigint
     constraint zidx_data_pk primary key
@@ -32,17 +42,34 @@ create table sensors.data(
     constraint zidx_data_fk_model references sensors.models(id)
   ,serial varchar
 );
+create trigger insertb_50_set_id
+  before insert
+  on sensors.data
+  for each row
+  when (new.id is null)
+  execute procedure triggers.set_id();
 
+create sequence objects.seq_sensors;
 create table objects.sensors(
-  object_id bigint
+  id bigint
+    constraint zidx_sensors_pk primary key
+  ,object_id bigint
     not null
     constraint zidx_sensors_fk_object references objects.data(id)
   ,sensor_id bigint
     not null
     constraint zidx_sensors_fk_sensor references sensors.data(id)
+  ,port_id varchar
 
-  ,constraint zidx_sensors_pk primary key(object_id, sensor_id)
+  ,constraint zidx_sensors_uk_object_sensor_port unique(object_id, sensor_id, port_id)
 );
 create unique index zidx_sensors_uk_sensor
 on objects.sensors(sensor_id)
 where not sensor.virtual(sensor_id);
+
+create trigger insertb_50_set_id
+  before insert
+  on objects.sensors
+  for each row
+  when (new.id is null)
+  execute procedure triggers.set_id();

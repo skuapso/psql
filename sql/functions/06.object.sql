@@ -91,3 +91,31 @@ begin
   from objects.data where id=$1;
   return row_to_json(r);
 end $$ language plpgsql stable;
+
+create function object.sensor(_object_id bigint, _port_type terminal.port_types, _port_id varchar)
+returns bigint as $$
+declare
+  sid bigint;
+begin
+  select id into sid from objects.sensors
+  where object_id=$1
+  and sensor.port_type(sensor_id)=$2
+  and port_id=$3;
+  return sid;
+end $$ language plpgsql stable;
+
+create function object.sensor(_object_id bigint, _object_sensor_id bigint) returns bigint as $$
+declare
+  sid bigint;
+begin
+  select sensor_id into sid from objects.sensors where object_id=$1 and id=$2;
+  return sid;
+end $$ language plpgsql stable;
+
+create function object.sensor(_object_sensor_id bigint) returns bigint as $$
+declare
+  sid bigint;
+begin
+  select sensor_id into sid from objects.sensors where id=$1;
+  return sid;
+end $$ language plpgsql stable;

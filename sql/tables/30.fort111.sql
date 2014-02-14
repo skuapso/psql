@@ -55,6 +55,21 @@ create rule update_object_event
         null
       end
     );
+create rule update_object_event_speed
+  as on insert
+  to fort111.navigation
+  where (
+    terminal.object(packet.terminal(new.id)) is not null
+    and new.speed is not null
+    and object.sensor(terminal.object(packet.terminal(new.id)), 'speed', 'speed') is not null
+  )
+  do also
+    insert into events.sensors
+    values (
+      new.id,
+      object.sensor(terminal.object(packet.terminal(new.id)), 'speed', 'speed'),
+      new.speed::varchar
+    );
 
 create table fort111.signal(
   id timestamptz,
@@ -112,6 +127,21 @@ create table fort111.digital_in(
   constraint zidx_digital_in_pk primary key(id, sensor),
   constraint zidx_digital_in_fk foreign key(id) references fort111.navigation(id) on delete cascade
 );
+
+create rule update_object_event
+  as on insert
+  to fort111.digital_in
+  where (
+    terminal.object(packet.terminal(new.id)) is not null
+    and object.sensor(terminal.object(packet.terminal(new.id)), 'digital', new.sensor::varchar) is not null
+  )
+  do also
+    insert into events.sensors
+    values (
+      new.id,
+      object.sensor(terminal.object(packet.terminal(new.id)), 'digital', new.sensor::varchar),
+      new.value::varchar
+    );
 
 create table fort111.digital_out(
   id timestamptz,

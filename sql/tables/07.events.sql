@@ -34,14 +34,14 @@ alter table objects.data
 
 create table events.sensors(
   id timestamptz
-    constraint zidx_sensors_pk primary key
     constraint zidx_sensors_fk references events.data(id)
   ,sensor_id bigint
     not null
-    constraint zidx_data_fk_sensor references sensors.data(id)
+    constraint zidx_data_fk_sensor references objects.sensors(id)
   ,value varchar
     not null
 );
+create index zidx_sensors_ik_id on events.sensors(id);
 
 create trigger pre_i_00_check_object
   before insert

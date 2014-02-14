@@ -58,3 +58,45 @@ create function navigation.distance(geography, geography) returns float as $$
 begin
   return st_distance($1, $2);
 end $$ language plpgsql immutable;
+
+create function navigation.x(geography) returns float8 as $$
+begin
+  return st_x($1::geometry);
+end $$ language plpgsql immutable strict;
+
+create function navigation.y(geography) returns float8 as $$
+begin
+  return st_y($1::geometry);
+end $$ language plpgsql immutable strict;
+
+create function navigation.z(geography) returns float8 as $$
+begin
+  return st_z($1::geometry);
+end $$ language plpgsql immutable strict;
+
+
+create type navigation.part_type as(
+  current bool
+  ,part_no bigint
+);
+
+create function navigation.part_state(navigation.part_type, bool) returns navigation.part_type as $$
+begin
+  if $2 is not null and $1.current<>$2 then
+    $1.part_no = $1.part_no + 1;
+    $1.current = $2;
+  end if;
+  return $1;
+end $$ language plpgsql immutable;
+
+create function navigation.part_fin(navigation.part_type) returns bigint as $$
+begin
+  return $1.part_no;
+end $$ language plpgsql immutable;
+
+create aggregate navigation.part(bool)(
+  sfunc = navigation.part_state
+  ,stype = navigation.part_type
+  ,finalfunc = navigation.part_fin
+  ,initcond = '(false,0)'
+);

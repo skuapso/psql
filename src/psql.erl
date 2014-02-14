@@ -369,7 +369,7 @@ insert_terminal_packet_sets_data(PacketID, Module, [{SetName, Data} | Else], Tim
 insert_terminal_packet_set_data(PacketID, _Module, _SetName, [], _Timeout) ->
   {ok, PacketID};
 insert_terminal_packet_set_data(PacketID, Module, SetName, [{_, Value} | Else], Timeout)
-    when Value =:= 0; Value =:= 0.0; Value =:= null; Value =:= undefined
+    when Value =:= null; Value =:= undefined
     ->
   insert_terminal_packet_set_data(PacketID, Module, SetName, Else, Timeout);
 insert_terminal_packet_set_data(PacketID, Module, SetName, [{N, Value} | Else], Timeout) ->
