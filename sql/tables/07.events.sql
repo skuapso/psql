@@ -6,8 +6,9 @@ create table events.data(
     not null
   ,object_id bigint
     not null
+    constraint zidx_data_fk_object references objects.data(id) on delete cascade
   ,terminal_id bigint
-    not null
+    constraint zidx_data_fk_terminal references terminals.data(id) on delete set null
   ,time timestamptz
     not null
   ,location geography
