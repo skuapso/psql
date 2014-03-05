@@ -65,7 +65,7 @@ create table objects.data(
   id bigint,
   no varchar not null,
   specialization_id bigint,
-  model_id bigint,
+  model_id bigint not null,
   terminal_id bigint,
   group_id bigint not null,
   owner_id bigint not null,
