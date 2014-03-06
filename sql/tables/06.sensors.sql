@@ -25,6 +25,7 @@ create table sensors.models(
     not null
   ,title varchar
     not null
+    default ''
 );
 
 create trigger insertb_50_set_id

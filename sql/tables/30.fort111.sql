@@ -61,13 +61,13 @@ create rule update_object_event_speed
   where (
     terminal.object(packet.terminal(new.id)) is not null
     and new.speed is not null
-    and object.sensor(terminal.object(packet.terminal(new.id)), 'speed', 'speed') is not null
+    and object.sensor(terminal.object(packet.terminal(new.id)), 'analog', 'speed') is not null
   )
   do also
     insert into events.sensors
     values (
       new.id,
-      object.sensor(terminal.object(packet.terminal(new.id)), 'speed', 'speed'),
+      object.sensor(terminal.object(packet.terminal(new.id)), 'analog', 'speed'),
       new.speed::varchar
     );
 

@@ -1,4 +1,4 @@
-create sequence objects.seq_specialization;
+create sequence objects.seq_specializations;
 create table objects.specializations(
   id bigint,
   title varchar not null,

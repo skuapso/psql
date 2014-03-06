@@ -4,7 +4,7 @@ create table owners.data(
   id bigint,
   parent_id bigint,
   title varchar not null,
-  description varchar not null,
+  description varchar not null default '',
 
   constraint zidx_data_pk primary key(id),
   constraint zidx_data_uk_title unique(title),
