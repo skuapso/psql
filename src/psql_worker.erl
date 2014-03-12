@@ -8,6 +8,7 @@
   start_link/8,
   insert/2,
   select/2,
+  update/2,
   function/2,
   execute/2
   ]).
@@ -55,6 +56,9 @@ select(Pid, {Schema, View, Filter}) ->
   select(Pid, {Schema, View, Filter, []});
 select(Pid, {Schema, View, Filter, Opts}) ->
   select(Pid, Schema, View, Filter, Opts).
+
+update(Pid, {Schema, Table, {Update, Condition}}) ->
+  update(Pid, Schema, Table, Update, Condition).
 
 function(Pid, {Schema, FunName, Params}) ->
   function(Pid, Schema, FunName, Params).
@@ -288,8 +292,15 @@ select(Pid, Schema, Table, Filters, Opts) ->
     undefined -> "";
     LimitNum -> " limit " ++ integer_to_list(LimitNum)
   end,
-  Query = "select * from " ++ atom_to_list(Schema) ++ "." ++ atom_to_list(Table) ++ " " ++ Conditions ++ Options,
+  Query = "select * from " ++ atom_to_list(Schema) ++ "." ++ atom_to_list(Table) ++ Conditions ++ Options,
   execute(Pid, Query, Values).
+
+update(Pid, Schema, Table, SetList, ConditionList) ->
+  {ok, SetCols, SetVals} = prepare_update_data(SetList),
+  {ok, Conditions, CondVals} = prepare_select_data(ConditionList, length(SetVals) + 1),
+  Params = SetVals ++ CondVals,
+  Query = "update " ++ atom_to_list(Schema) ++ "." ++ atom_to_list(Table) ++ " set " ++ SetCols ++ Conditions,
+  execute(Pid, Query, Params).
 
 function(Pid, Schema, FunName, Params) ->
   {ok, BoundList} = prepare_function_data(Params),
@@ -299,6 +310,19 @@ function(Pid, Schema, FunName, Params) ->
 execute(Pid, Query, Values) ->
   trace("calling gen fsm to execute query"),
   gen_fsm:send_event(Pid, {self(), Query, Values}).
+
+prepare_update_data(Data) ->
+  prepare_update_data(Data, [], [], 1).
+
+prepare_update_data([{Key, Val} | Tail], Columns, Vals, N) ->
+  debug("adding ~w", [{Key, Val}]),
+  prepare_update_data(
+    Tail,
+    Columns ++ "," ++ atom_to_list(Key) ++ "=$" ++ integer_to_list(N),
+    [Val | Vals],
+    N + 1);
+prepare_update_data([], [$, | Columns], Vals, _N) ->
+  {ok, Columns, lists:reverse(Vals)}.
 
 prepare_insert_data([]) ->
   {ok, [], [], []};
@@ -314,13 +338,16 @@ prepare_insert_data([{Key, Value} | T], Col, P, Vals, N) ->
   Values = [Value | Vals],
   prepare_insert_data(T, Columns, Params, Values, N + 1).
 
-prepare_select_data([]) ->
-  {ok, [], []};
 prepare_select_data(Data) ->
-  prepare_select_data(Data, [], [], 1).
+  prepare_select_data(Data, 1).
+
+prepare_select_data([], _N) ->
+  {ok, [], []};
+prepare_select_data(Data, N) ->
+  prepare_select_data(Data, [], [], N).
 
 prepare_select_data([], [32 | [$a | [$n | [$d | Condition]]]], Values, _N) ->
-  {ok, "where " ++ Condition, lists:reverse(Values)};
+  {ok, " where" ++ Condition, lists:reverse(Values)};
 prepare_select_data([{Key, null} | T], Con, Vals, N) ->
   Condition = Con ++ " and " ++ atom_to_list(Key) ++ " is null",
   prepare_select_data(T, Condition, Vals, N);
