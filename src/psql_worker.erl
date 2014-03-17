@@ -299,7 +299,7 @@ update(Pid, Schema, Table, SetList, ConditionList) ->
   {ok, SetCols, SetVals} = prepare_update_data(SetList),
   {ok, Conditions, CondVals} = prepare_select_data(ConditionList, length(SetVals) + 1),
   Params = SetVals ++ CondVals,
-  Query = "update " ++ atom_to_list(Schema) ++ "." ++ atom_to_list(Table) ++ " set " ++ SetCols ++ Conditions,
+  Query = "update " ++ atom_to_list(Schema) ++ "." ++ atom_to_list(Table) ++ " set " ++ SetCols ++ Conditions ++ " returning id",
   execute(Pid, Query, Params).
 
 function(Pid, Schema, FunName, Params) ->
