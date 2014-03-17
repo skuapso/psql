@@ -43,6 +43,7 @@ create table objects.groups(
   constraint zidx_groups_fk_owner foreign key(owner_id) references owners.data(id),
   constraint zidx_groups_fk_parent foreign key(parent_id) references objects.groups(id),
   constraint zidx_groups_ck_parent check(not(array[parent_id] <@ "group".childs(id))),
+  constraint zidx_groups_ck_self_parent check(not parent_id=id),
   constraint zidx_groups_ck_owner check("group".owner(id) = "group".owner(parent_id))
 );
 
