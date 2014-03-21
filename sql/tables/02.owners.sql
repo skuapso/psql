@@ -16,3 +16,10 @@ create trigger insertb_00_set_id
   on owners.data
   for each row
   execute procedure triggers.set_id();
+
+create trigger updatea_zz_notify
+  after update
+  on owners.data
+  for each row
+  when (new <> old)
+  execute procedure triggers.notify_update('ui', 'owner');
