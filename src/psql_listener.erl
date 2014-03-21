@@ -83,9 +83,13 @@ disconnected({connect, Host, Port, User, Passwd, DB, SSL, SSLOpts, undefined}, S
   disconnected({connect, Host, Port, User, Passwd, DB, SSL, SSLOpts, infinity}, S);
 disconnected({connect, Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout}, S) ->
   trace("connecting"),
-  Opts = [{port, Port}, {database, DB}, {ssl, SSL}, {ssl_opts, SSLOpts}, {timeout, Timeout}],
+  Opts = [{port, Port}, {database, DB},
+          {ssl, SSL}, {ssl_opts, SSLOpts},
+          {timeout, Timeout}, {async, self()}],
   debug("connecting to ~s:~w, user ~s, opts ~w", [Host, Port, User, Opts]),
   {ok, C} = pgsql:connect(Host, User, Passwd, Opts),
+  pgsql:squery(C, "listen system"),
+  pgsql:squery(C, "listen ui"),
   trace("connected"),
   {next_state, ready, S#state{connection = C}}.
 
@@ -163,6 +167,26 @@ handle_sync_event(Event, From, StateName, State) ->
 %%                   {stop, Reason, NewState}
 %% @end
 %%--------------------------------------------------------------------
+handle_info({pgsql, _Pid, {notification, <<"ui">>, _PgPid, Payment}},
+            StateName, #state{connection = C} = State) ->
+  {Type, Table, Schema, Id} = parse(Payment),
+  Query = <<"select row_to_json(O.*) as json from"
+              "(select *,$1::varchar as type from ",
+                Table/binary, ".", Schema/binary,
+              " where id=$2) as O"
+          >>,
+  [{Data}] = case pgsql:equery(C, Query, [Type, Id]) of
+           {ok, _, Row} ->
+             debug("ui notification ~w", [Row]),
+             Row;
+           Else ->
+             alert("unknown answer ~w", [Else]),
+             []
+         end,
+  hooks:run(ui, [{Type, Id}, Data]),
+  {next_state, StateName, State};
+handle_info(stop, _StateName, State) ->
+  {stop, normal, State};
 handle_info(Info, StateName, State) ->
   warning("unhandled info msg ~w when ~s", [Info, StateName]),
   {next_state, StateName, State}.
@@ -196,3 +220,10 @@ code_change(_OldVsn, StateName, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+parse(Data) ->
+  [Type, Table, Schema | IdBin] = re:split(Data, " "),
+  Id = parse_id(IdBin),
+  {erlang:binary_to_atom(Type, latin1), Table, Schema, Id}.
+
+parse_id([IdBin]) ->
+  binary_to_integer(IdBin).
