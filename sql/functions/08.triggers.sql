@@ -14,31 +14,30 @@ end $$ language plpgsql;
 comment on function triggers.set_id ()
   is 'задает следующий по порядку id';
 --------------------------------------------------------------------------------
--- функция системное сообщение
+-- асинхронные сообщения
 --------------------------------------------------------------------------------
-create or replace function triggers.system_notify ()
+create or replace function triggers.notify_system ()
                     returns trigger as $$
 begin
-  raise warning 'system % %', tg_argv[0], tg_argv[1];
-  perform pg_notify ('system', tg_argv[0] || ' ' || tg_argv[1]);
+  perform triggers.notify('system', tg_argv[0] || ' ' || tg_argv[1]);
   return new;
 end $$ language plpgsql;
---------------------------------------------------------------------------------
--- функция генерирует сообщение с указанием ошибочного поля
---------------------------------------------------------------------------------
-create or replace function triggers.notify ()
+
+create or replace function triggers.notify (ch text, pay text)
+                    returns void as $$
+begin
+  raise notice '% %', ch, pay;
+  perform pg_notify (ch, pay);
+  return;
+end $$ language plpgsql;
+
+create or replace function triggers.notify_update ()
                     returns trigger as $$
 begin
-  raise notice 'async notify trigger % % on %.%',
-    tg_argv[0], tg_argv[1], tg_table_schema, tg_table_name;
-  perform system.notify (tg_argv[0], tg_argv[1]);
-  if lower (tg_when) = 'before' then
-    new.id = null;
-  end if;
+  perform triggers.notify (tg_argv[0], tg_argv[1] || ' '
+    || tg_table_schema || ' ' || tg_table_name || ' ' || new.id);
   return new;
 end $$ language plpgsql;
-comment on function triggers.notify ()
-  is 'генерирует сообщение с указанием ошибочного поля';
 --------------------------------------------------------------------------------
 -- отклоняет добавление записи
 --------------------------------------------------------------------------------
