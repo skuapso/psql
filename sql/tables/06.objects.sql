@@ -61,6 +61,13 @@ create trigger updateb_00_check_parenting
   when (array[new.parent_id] <@ "group".childs(new.id))
     execute procedure triggers.reject();
 
+create trigger updatea_zz_notify
+  after update
+  on objects.groups
+  for each row
+  when (new <> old)
+  execute procedure triggers.notify_update('ui', 'group');
+
 create sequence objects.seq_data;
 create table objects.data(
   id bigint,
@@ -80,6 +87,13 @@ create table objects.data(
   constraint zidx_data_fk_group foreign key(group_id) references objects.groups(id),
   constraint zidx_data_fk_owner foreign key(owner_id) references owners.data(id)
 );
+
+create trigger updatea_zz_notify
+  after update
+  on objects.data
+  for each row
+  when (new <> old)
+  execute procedure triggers.notify_update('ui', 'object');
 
 create trigger insertb_00_set_id
   before insert
