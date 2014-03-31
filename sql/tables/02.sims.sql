@@ -22,7 +22,8 @@ create table sims.sessions(
   terminate_cause varchar,
 
   constraint zidx_sessions_pk primary key(id),
-  constraint zidx_sessions_fk_sim foreign key(sim_id) references sims.data(no) on delete cascade
+  constraint zidx_sessions_fk_sim foreign key(sim_id) references sims.data(no) on delete cascade,
+  constraint zidx_sessions_fk_nas foreign key(nas_id) references radius.nas(id) on delete cascade
 );
 create index zidx_sessions_ik_sim on sims.sessions(sim_id);
 create index zidx_sessions_ik_sim_tcnull on sims.sessions(sim_id) where (terminate_cause is null);
