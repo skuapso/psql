@@ -42,7 +42,9 @@ create sequence terminals.seq_commands;
 create table terminals.commands(
   id bigint,
   dbtime timestamptz not null default current_timestamp,
-  terminal_id bigint not null,
+  terminal_id bigint
+    not null
+    constraint zidx_commands_fk_terminal references terminals.data(id),
   command bytea not null,
   type terminals.command_send_type not null default 'answer',
   executed timestamptz,
