@@ -53,6 +53,21 @@ begin
   return p;
 end $$ language plpgsql stable;
 
+create or replace function "group".parents(_group_id bigint) returns bigint[] as $$
+declare
+  parents bigint[];
+  current_group bigint;
+begin
+  parents = array[]::bigint[];
+  current_group = "group".parent($1);
+  loop
+    exit when current_group is null;
+    parents = current_group || parents;
+    current_group = "group".parent(current_group);
+  end loop;
+  return parents;
+end $$ language plpgsql stable;
+
 create or replace function "group".owner(_group_id bigint) returns bigint as $$
 declare
   o bigint;
