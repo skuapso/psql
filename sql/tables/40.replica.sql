@@ -7,9 +7,10 @@ create sequence replica.seq_issues;
 create type replica.issue as enum('connection_timeout', 'connection_rejected', 'send_timeout', 'waiting_closed', 'wrong_answer');
 create type replica.connection_types as enum('soft', 'aggressive');
 
+raise warning 'data should be send to somebody not to server';
 create table replica.servers(
   id bigint,
-  owner_id bigint not null,
+--  owner_id bigint not null,
   hostname varchar not null,
   port bigint not null,
   protocols terminals.protocols[] not null,
@@ -18,8 +19,8 @@ create table replica.servers(
   max_connections bigint,
   connection_type replica.connection_types not null default 'soft',
 
-  constraint zidx_servers_pk primary key(id),
-  constraint zidx_servers_fk_owner foreign key(owner_id) references owners.data(id) on delete cascade
+  constraint zidx_servers_pk primary key(id)
+--  constraint zidx_servers_fk_owner foreign key(owner_id) references owners.data(id) on delete cascade
 );
 
 create table replica.include_rules(

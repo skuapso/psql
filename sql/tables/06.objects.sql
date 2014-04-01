@@ -34,17 +34,13 @@ create sequence objects.seq_groups;
 create table objects.groups(
   id bigint,
   title varchar not null,
-  description varchar,
-  owner_id bigint not null,
   parent_id bigint,
 
   constraint zidx_groups_pk primary key(id),
   constraint zidx_groups_uk_title unique(title),
-  constraint zidx_groups_fk_owner foreign key(owner_id) references owners.data(id),
   constraint zidx_groups_fk_parent foreign key(parent_id) references objects.groups(id),
   constraint zidx_groups_ck_parent check(not(array[parent_id] <@ "group".childs(id))),
-  constraint zidx_groups_ck_self_parent check(not parent_id=id),
-  constraint zidx_groups_ck_owner check("group".owner(id) = "group".owner(parent_id))
+  constraint zidx_groups_ck_self_parent check(not parent_id=id)
 );
 
 create trigger insertb_00_set_id
@@ -76,7 +72,6 @@ create table objects.data(
   model_id bigint not null,
   terminal_id bigint,
   group_id bigint not null,
-  owner_id bigint not null,
 
   constraint zidx_data_pk primary key(id),
   constraint zidx_data_uk_no unique(no),
@@ -84,8 +79,7 @@ create table objects.data(
   constraint zidx_data_fk_specialization foreign key(specialization_id) references objects.specializations(id),
   constraint zidx_data_fk_model foreign key(model_id) references objects.models(id),
   constraint zidx_data_fk_terminal foreign key(terminal_id) references terminals.data(id),
-  constraint zidx_data_fk_group foreign key(group_id) references objects.groups(id),
-  constraint zidx_data_fk_owner foreign key(owner_id) references owners.data(id)
+  constraint zidx_data_fk_group foreign key(group_id) references objects.groups(id)
 );
 
 create trigger updatea_zz_notify
@@ -102,7 +96,7 @@ create trigger insertb_00_set_id
   when (new.id is null)
   execute procedure triggers.set_id();
 
-create view groups.tree as select id, parent_id as parent_id, title, owner_id
+create view groups.tree as select id, parent_id as parent_id, title
   from objects.groups
   order by parent_id nulls first;
 

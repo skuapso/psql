@@ -22,13 +22,11 @@ create table terminals.data(
   serial_no varchar not null,
   period interval not null default '00:03:00',
   model_id bigint not null,
-  owner_id bigint,
 
   constraint zidx_terminals_pk primary key(id),
   constraint zidx_terminals_uk_uin_model unique(uin, model_id),
   constraint zidx_terminals_uk_serial_model unique(serial_no, model_id),
-  constraint zidx_terminals_fk_model foreign key(model_id) references terminals.models(id),
-  constraint zidx_terminals_fk_owner foreign key(owner_id) references owners.data(id)
+  constraint zidx_terminals_fk_model foreign key(model_id) references terminals.models(id)
 );
 
 create trigger insertb_00_set_id
