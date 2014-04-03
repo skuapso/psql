@@ -56,7 +56,7 @@ create table objects.sensors(
     constraint zidx_sensors_pk primary key
   ,object_id bigint
     not null
-    constraint zidx_sensors_fk_object references objects.data(id)
+    constraint zidx_sensors_fk_object references objects._data(id)
   ,sensor_id bigint
     not null
     constraint zidx_sensors_fk_sensor references sensors.data(id)

@@ -1,6 +1,6 @@
 create function uac.check_group_parents() returns trigger as $$
 begin
-  select id from uac.groups where array[group_id]<@"group".parents(new.group_id);
+  perform 1 from uac.groups where array[group_id]<@"group".parents(new.group_id);
   if found then
     return null;
   end if;
@@ -23,3 +23,19 @@ begin
                 where m.member = uac.role_id($1)
               );
 end $$ language plpgsql stable;
+
+create function uac.can_read_group(_group_id bigint) returns boolean as $$
+begin
+  return uac.can_read_group(current_user, $1);
+end $$ language plpgsql stable;
+
+create function uac.can_read_group(_user name, _group_id bigint) returns boolean as $$
+begin
+  perform 1 from uac.groups
+  where array[user_name]<@uac.roles($1)
+  and (
+    group_id=$2
+    or array[group_id]<@"group".parents($2)
+  );
+  return found;
+end $$ language plpgsql stable security definer;

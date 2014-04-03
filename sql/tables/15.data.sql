@@ -9,7 +9,7 @@ create table data.connections(
   terminal_id bigint,
 
   constraint zidx_connections_pk primary key(id),
-  constraint zidx_connections_fk_terminal foreign key(terminal_id) references terminals.data(id) on delete set null
+  constraint zidx_connections_fk_terminal foreign key(terminal_id) references terminals._data(id) on delete set null
 );
 create index zidx_connections_ik_terminal on data.connections(terminal_id);
 comment on table data.connections is 'table for connections';

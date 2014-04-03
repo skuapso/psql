@@ -6,9 +6,9 @@ create table events.data(
     not null
   ,object_id bigint
     not null
-    constraint zidx_data_fk_object references objects.data(id) on delete cascade
+    constraint zidx_data_fk_object references objects._data(id) on delete cascade
   ,terminal_id bigint
-    constraint zidx_data_fk_terminal references terminals.data(id) on delete set null
+    constraint zidx_data_fk_terminal references terminals._data(id) on delete set null
   ,time timestamptz
     not null
   ,location geography
@@ -29,7 +29,7 @@ create index zidx_data_uk_object_time_not_valid
 on events.data(object_id, time)
 where not valid;
 
-alter table objects.data
+alter table objects._data
   add last_event_id timestamptz
   constraint zidx_data_fk_last_event references events.data(id) on delete cascade;
 

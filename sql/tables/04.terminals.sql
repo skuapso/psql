@@ -15,8 +15,8 @@ create trigger insertb_00_set_id
   when (new.id is null)
   execute procedure triggers.set_id();
 
-create sequence terminals.seq_data;
-create table terminals.data(
+create sequence terminals.seq__data;
+create table terminals._data(
   id bigint,
   uin bigint not null,
   serial_no varchar not null,
@@ -31,7 +31,7 @@ create table terminals.data(
 
 create trigger insertb_00_set_id
   before insert
-  on terminals.data
+  on terminals._data
   for each row
   when (new.id is null)
   execute procedure triggers.set_id();
@@ -42,7 +42,7 @@ create table terminals.commands(
   dbtime timestamptz not null default current_timestamp,
   terminal_id bigint
     not null
-    constraint zidx_commands_fk_terminal references terminals.data(id),
+    constraint zidx_commands_fk_terminal references terminals._data(id),
   command bytea not null,
   type terminals.command_send_type not null default 'answer',
   executed timestamptz,

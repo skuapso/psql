@@ -1,8 +1,3 @@
-create function "group".can_view(_group_id bigint) returns bool as $$
-begin
-  return true;
-end $$ language plpgsql stable;
-
 create function "group".title(_group_id bigint) returns varchar as $$
 declare
   t varchar;
@@ -49,9 +44,15 @@ create or replace function "group".parent(_group_id bigint) returns bigint as $$
 declare
   p bigint;
 begin
-  select parent_id into p from objects.groups where id=$1;
+  select id into p
+  from objects.groups
+  where id in (
+    select parent_id
+    from objects._groups
+    where id=$1
+  );
   return p;
-end $$ language plpgsql stable;
+end $$ language plpgsql stable security definer;
 
 create or replace function "group".parents(_group_id bigint) returns bigint[] as $$
 declare
@@ -66,14 +67,6 @@ begin
     current_group = "group".parent(current_group);
   end loop;
   return parents;
-end $$ language plpgsql stable;
-
-create or replace function "group".owner(_group_id bigint) returns bigint as $$
-declare
-  o bigint;
-begin
-  select owner_id into o from objects.groups where id=$1;
-  return o;
 end $$ language plpgsql stable;
 
 create or replace function "group".json(_group_id bigint) returns json as $$

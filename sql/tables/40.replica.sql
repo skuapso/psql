@@ -34,8 +34,8 @@ create table replica.include_rules(
 
   constraint zidx_include_rules_pk primary key(id),
   constraint zidx_include_rules_fk_server foreign key(server_id) references replica.servers(id) on delete cascade,
-  constraint zidx_include_rules_fk_object foreign key(object_id) references objects.data(id) on delete cascade,
-  constraint zidx_include_rules_fk_group foreign key(group_id) references objects.groups(id) on delete cascade,
+  constraint zidx_include_rules_fk_object foreign key(object_id) references objects._data(id) on delete cascade,
+  constraint zidx_include_rules_fk_group foreign key(group_id) references objects._groups(id) on delete cascade,
   constraint zidx_include_rules_check check ((
       (object_id is not null)::integer +
       (group_id is not null)::integer +
@@ -56,8 +56,8 @@ create table replica.exclude_rules(
 
   constraint zidx_exclude_rules_pk primary key(id),
   constraint zidx_exclude_rules_fk_server foreign key(server_id) references replica.servers(id) on delete cascade,
-  constraint zidx_exclude_rules_fk_object foreign key(object_id) references objects.data(id) on delete cascade,
-  constraint zidx_exclude_rules_fk_group foreign key(group_id) references objects.groups(id) on delete cascade,
+  constraint zidx_exclude_rules_fk_object foreign key(object_id) references objects._data(id) on delete cascade,
+  constraint zidx_exclude_rules_fk_group foreign key(group_id) references objects._groups(id) on delete cascade,
   constraint zidx_exclude_rules_check check ((
       (object_id is not null)::integer +
       (group_id is not null)::integer +

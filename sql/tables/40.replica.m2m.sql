@@ -13,7 +13,7 @@ create table replica.m2m(
   reboot bigint not null default 0,
 
   constraint zidx_m2m_pk primary key(id)
-  ,constraint zidx_m2m_fk_terminal foreign key (terminal_id) references terminals.data(id) on delete cascade
+  ,constraint zidx_m2m_fk_terminal foreign key (terminal_id) references terminals._data(id) on delete cascade
 );
 create trigger insertb_zz_correct_id
   before insert on replica.m2m for each row
