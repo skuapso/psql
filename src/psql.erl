@@ -286,7 +286,7 @@ init(Opts) ->
         },
         {
           psql_pool,
-          {psql_pool, start_link, [get_opts(Args), MaxConnections, QueueSize]},
+          {psql_pool, start_link, [psql_pool, get_opts(Args), MaxConnections, QueueSize]},
           permanent,
           5000,
           supervisor,
@@ -305,7 +305,8 @@ get_opts(Opts) ->
   SSL     = misc:get_env(?MODULE, ssl, Opts),
   SSLOpts = misc:get_env(?MODULE, ssl_opts, Opts),
   Timeout = misc:get_env(?MODULE, timeout, Opts),
-  [Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout].
+  Commands = misc:get_env(?MODULE, pre_commands, Opts),
+  [Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout, Commands].
 
 execute(Request, Data) ->
   execute(unknown, Request, Data).
@@ -316,7 +317,7 @@ execute(Priority, Request, Data) when is_tuple(Data) ->
   execute(Priority, Request, Data, 5000).
 
 execute(Priority, Request, Data, Timeout) ->
-  psql_pool:request(Priority, {Request, Data}, Timeout).
+  psql_pool:request(psql_pool, Priority, {Request, Data}, Timeout).
 
 get_terminal_id({Module, UIN}, Timeout) ->
   case hooks:get(terminal_id) of

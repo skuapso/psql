@@ -59,9 +59,9 @@ start_link(Opts) ->
 %%                     {stop, StopReason}
 %% @end
 %%--------------------------------------------------------------------
-init([Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout]) ->
+init([Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout, Commands]) ->
   trace("init"),
-  gen_fsm:send_event(self(), {connect, Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout}),
+  gen_fsm:send_event(self(), {connect, Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout, Commands}),
   {ok, disconnected, #state{}}.
 
 %%--------------------------------------------------------------------
@@ -79,9 +79,9 @@ init([Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout]) ->
 %%                   {stop, Reason, NewState}
 %% @end
 %%--------------------------------------------------------------------
-disconnected({connect, Host, Port, User, Passwd, DB, SSL, SSLOpts, undefined}, S) ->
-  disconnected({connect, Host, Port, User, Passwd, DB, SSL, SSLOpts, infinity}, S);
-disconnected({connect, Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout}, S) ->
+disconnected({connect, Host, Port, User, Passwd, DB, SSL, SSLOpts, undefined, Commands}, S) ->
+  disconnected({connect, Host, Port, User, Passwd, DB, SSL, SSLOpts, infinity, Commands}, S);
+disconnected({connect, Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout, _Commands}, S) ->
   trace("connecting"),
   Opts = [{port, Port}, {database, DB},
           {ssl, SSL}, {ssl_opts, SSLOpts},

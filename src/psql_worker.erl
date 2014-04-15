@@ -5,7 +5,7 @@
 %% API
 -export([
   start_link/1,
-  start_link/8,
+  start_link/9,
   insert/2,
   select/2,
   update/2,
@@ -66,14 +66,16 @@ function(Pid, {Schema, FunName, Params}) ->
 execute(Pid, {Query, Values}) ->
   execute(Pid, Query, Values).
 
-start_link([Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout]) ->
-  start_link(Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout).
+start_link([Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout, Commands]) ->
+  start_link(Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout, Commands).
 
-start_link(Host, Port, User, Passwd, DB, SSL, SSLOpts, undefined) ->
-  start_link(Host, Port, User, Passwd, DB, SSL, SSLOpts, ?WAIT_TIMEOUT);
-start_link(Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout) ->
+start_link(Host, Port, User, Passwd, DB, SSL, SSLOpts, undefined, Commands) ->
+  start_link(Host, Port, User, Passwd, DB, SSL, SSLOpts, ?WAIT_TIMEOUT, Commands);
+start_link(Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout, Commands) ->
   trace("starting"),
-  case gen_fsm:start_link(?MODULE, [Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout], [{timeout, Timeout}]) of
+  case gen_fsm:start_link(?MODULE,
+                          [Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout, Commands],
+                          [{timeout, Timeout}]) of
     {ok, Pid} ->
       case gen_fsm:sync_send_event(Pid, backend, Timeout) of
         {ok, BackendPid} -> {ok, Pid, BackendPid};
@@ -99,9 +101,10 @@ start_link(Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout) ->
 %%                     {stop, StopReason}
 %% @end
 %%--------------------------------------------------------------------
-init([Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout]) ->
+init([Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout, Commands]) ->
   trace("initialization"),
-  gen_fsm:send_event(self(), {connect, Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout}),
+  gen_fsm:send_event(self(),
+                     {connect, Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout, Commands}),
   {ok, disconnected, #state{}, Timeout}.
 
 %%--------------------------------------------------------------------
@@ -119,7 +122,7 @@ init([Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout]) ->
 %%                   {stop, Reason, NewState}
 %% @end
 %%--------------------------------------------------------------------
-disconnected({connect, Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout}, _S) ->
+disconnected({connect, Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout, Commands}, _S) ->
   trace("connecting"),
   Opts = [{port, Port}, {database, DB}, {ssl, SSL}, {ssl_opts, SSLOpts}, {timeout, infinity}],
   debug("connecting to ~s:~w, user ~s, opts ~w", [Host, Port, User, Opts]),
@@ -235,11 +238,11 @@ handle_info(_Info, StateName, State) ->
 %%--------------------------------------------------------------------
 terminate(normal, ready, #state{socket = C} = _S) ->
   trace("terminating"),
-  pgsql:close(C),
+  close(C),
   ok;
 terminate(Reason, StateName, #state{socket = C} = _S) ->
   warning("terminating when ~w, reason ~w", [StateName, Reason]),
-  pgsql:close(C),
+  close(C),
   ok.
 
 %%--------------------------------------------------------------------
@@ -365,3 +368,6 @@ prepare_function_data([], [$, | PList], _N) ->
   {ok, PList};
 prepare_function_data([_Param | Params], PList, N) ->
   prepare_function_data(Params, PList ++ ",$" ++ integer_to_list(N), N + 1).
+
+close(undefined) -> ok;
+close(Pid) when is_pid(Pid) -> pgsql:close(Pid).

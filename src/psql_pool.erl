@@ -14,8 +14,10 @@
 %% API
 -export([
   start_link/3,
+  start_link/4,
   request/2,
-  request/3
+  request/3,
+  request/4
   ]).
 
 %% gen_event callbacks
@@ -39,8 +41,15 @@
 %%%===================================================================
 request(Query, Timeout) ->
   request(unknown, Query, Timeout).
-request(Priority, Query, Timeout) when Priority > -10000 ->
-  gen_server:call(?MODULE, {request, Priority, Query}, Timeout).
+
+request(Pid, Query, Timeout) when is_pid(Pid) ->
+  request(Pid, unknown, Query, Timeout);
+
+request(Priority, Query, Timeout) ->
+  request(?MODULE, Priority, Query, Timeout).
+
+request(Pid, Priority, Query, Timeout) when Priority > -10000 ->
+  gen_server:call(Pid, {request, Priority, Query}, Timeout).
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -50,7 +59,9 @@ request(Priority, Query, Timeout) when Priority > -10000 ->
 %% @end
 %%--------------------------------------------------------------------
 start_link(Opts, MaxConnections, QueueSize) ->
-  gen_server:start_link({local, ?MODULE}, ?MODULE, {Opts, MaxConnections, QueueSize}, []).
+  gen_server:start_link(?MODULE, {Opts, MaxConnections, QueueSize}, []).
+start_link(Name, Opts, MaxConnections, QueueSize) ->
+  gen_server:start_link({local, Name}, ?MODULE, {Opts, MaxConnections, QueueSize}, []).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -84,6 +95,7 @@ handle_cast(Msg, State) ->
   {noreply, State}.
 
 handle_call({request, Priority, Query}, From, #state{queries_ets = QEts} = State) ->
+  trace("new request ~w with priority ~w from ~w", [Query, Priority, From]),
   link(From),
   ets:insert(QEts, {{Priority, now(), From}, Query}),
   debug("ets is ~w", [ets:match(QEts, '$1')]),
@@ -221,7 +233,7 @@ whois(Pid, State) ->
   end.
 
 new_request() ->
-  gen_server:cast(?MODULE, new_request).
+  gen_server:cast(self(), new_request).
 
 psql(Query, #state{backends_ets = BEts} = State) ->
   case get_ready(State) of
