@@ -95,7 +95,8 @@ do instead
   insert into objects._data (no, model_id, specialization_id, group_id, terminal_id)
   select new.no, new.model_id, new.specialization_id, new.group_id, new.terminal_id
   from objects.groups
-  where id=new.group_id;
+  where id=new.group_id
+  returning *;
 
 create view terminals.data as
   select T.* from objects.data O
