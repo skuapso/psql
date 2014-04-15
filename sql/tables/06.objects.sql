@@ -39,8 +39,12 @@ create table objects._groups(
     constraint zidx_groups_uk_title unique,
   parent_id bigint
     constraint zidx_groups_fk_parent references objects._groups(id)
+      on delete set default
     constraint zidx_groups_ck_parent check(not(array[parent_id] <@ "group".childs(id)))
-    constraint zidx_groups_ck_self_parent check(not parent_id=id)
+    constraint zidx_groups_ck_self_parent check(not parent_id=id),
+  deleted boolean
+    not null
+    default false
 );
 
 create trigger insertb_00_set_id
@@ -66,20 +70,26 @@ create trigger updatea_zz_notify
 
 create sequence objects.seq__data;
 create table objects._data(
-  id bigint,
-  no varchar not null,
-  specialization_id bigint,
-  model_id bigint not null,
-  terminal_id bigint,
-  group_id bigint not null,
-
-  constraint zidx_data_pk primary key(id),
-  constraint zidx_data_uk_no unique(no),
-  constraint zidx_data_uk_terminal unique(terminal_id),
-  constraint zidx_data_fk_specialization foreign key(specialization_id) references objects.specializations(id),
-  constraint zidx_data_fk_model foreign key(model_id) references objects.models(id),
-  constraint zidx_data_fk_terminal foreign key(terminal_id) references terminals._data(id),
-  constraint zidx_data_fk_group foreign key(group_id) references objects._groups(id)
+  id bigint
+    constraint zidx_data_pk primary key,
+  no varchar
+    not null
+    constraint zidx_data_uk_no unique,
+  model_id bigint
+    not null
+    constraint zidx_data_fk_model references objects.models(id),
+  specialization_id bigint
+    constraint zidx_data_fk_specialization references objects.specializations(id),
+  group_id bigint
+    not null
+    constraint zidx_data_fk_group references objects._groups(id),
+  terminal_id bigint
+    constraint zidx_data_uk_terminal unique
+    constraint zidx_data_fk_terminal references terminals._data(id)
+      on delete set null,
+  deleted boolean
+    not null
+    default false
 );
 
 create trigger updatea_zz_notify

@@ -1,6 +1,6 @@
 create function uac.check_group_parents() returns trigger as $$
 begin
-  perform 1 from uac.groups where array[group_id]<@"group".parents(new.group_id);
+  perform 1 from uac.groups where array[group_id]<@(new.group_id || "group".parents(new.group_id));
   if found then
     return null;
   end if;
@@ -34,8 +34,11 @@ begin
   perform 1 from uac.groups
   where array[user_name]<@uac.roles($1)
   and (
-    group_id=$2
-    or array[group_id]<@"group".parents($2)
+    group_id is null
+    or (
+      group_id=$2
+      or array[group_id]<@"group".parents($2)
+    )
   );
   return found;
 end $$ language plpgsql stable security definer;

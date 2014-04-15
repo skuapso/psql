@@ -50,8 +50,8 @@ create trigger insertb_50_set_id
   when (new.id is null)
   execute procedure triggers.set_id();
 
-create sequence objects.seq_sensors;
-create table objects.sensors(
+create sequence objects.seq__sensors;
+create table objects._sensors(
   id bigint
     constraint zidx_sensors_pk primary key
   ,object_id bigint
@@ -65,12 +65,12 @@ create table objects.sensors(
   ,constraint zidx_sensors_uk_object_sensor_port unique(object_id, sensor_id, port_id)
 );
 create unique index zidx_sensors_uk_sensor
-on objects.sensors(sensor_id)
+on objects._sensors(sensor_id)
 where not sensor.virtual(sensor_id);
 
 create trigger insertb_50_set_id
   before insert
-  on objects.sensors
+  on objects._sensors
   for each row
   when (new.id is null)
   execute procedure triggers.set_id();

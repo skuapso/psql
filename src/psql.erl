@@ -12,7 +12,8 @@
   terminal_answer/5,
   terminal_packet/7,
   get/5,
-  set/5
+  set/5,
+  get_opts/1
   ]).
 
 %% API

@@ -20,8 +20,9 @@ create table terminals._data(
   id bigint,
   uin bigint not null,
   serial_no varchar not null,
-  period interval not null default '00:03:00',
+  period interval not null,
   model_id bigint not null,
+  deleted boolean not null default false,
 
   constraint zidx_terminals_pk primary key(id),
   constraint zidx_terminals_uk_uin_model unique(uin, model_id),

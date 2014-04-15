@@ -20,7 +20,7 @@ declare
   i bigint;
 begin
   select id into m from terminals.models where $2=any(protocols) order by id desc limit 1;
-  insert into terminals.data(id, uin, serial_no, model_id) values
+  insert into terminals._data(id, uin, serial_no, model_id) values
     (null, $1, $1::varchar, m) returning id into i;
   return i;
 end $$ language plpgsql volatile;
@@ -42,7 +42,7 @@ create function terminal.get(
 declare
   i bigint;
 begin
-  select id into i from terminals.data where uin=$1 and $2=any(terminal.protocols(id));
+  select id into i from terminals._data where uin=$1 and $2=any(terminal.protocols(id));
   if i is null and _auto_add then
     i = terminal.add($1, $2);
   end if;
@@ -61,7 +61,7 @@ create function terminal.model(_terminal_id bigint) returns bigint as $$
 declare
   m bigint;
 begin
-  select model_id into m from terminals.data where id=$1;
+  select model_id into m from terminals._data where id=$1;
   return m;
 end $$ language plpgsql stable;
 
@@ -74,7 +74,7 @@ create function terminal.uin(_terminal_id bigint) returns bigint as $$
 declare
   u bigint;
 begin
-  select uin into u from terminals.data where id=$1;
+  select uin into u from terminals._data where id=$1;
   return u;
 end $$ language plpgsql immutable;
 

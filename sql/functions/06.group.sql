@@ -45,7 +45,7 @@ declare
   p bigint;
 begin
   select id into p
-  from objects.groups
+  from objects._groups
   where id in (
     select parent_id
     from objects._groups

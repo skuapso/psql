@@ -38,7 +38,7 @@ create table events.sensors(
     constraint zidx_sensors_fk references events.data(id)
   ,sensor_id bigint
     not null
-    constraint zidx_data_fk_sensor references objects.sensors(id)
+    constraint zidx_data_fk_sensor references objects._sensors(id)
   ,value varchar
     not null
 );
