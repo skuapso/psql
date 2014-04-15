@@ -40,9 +40,10 @@ create view objects.groups as
   where not deleted
   and uac.can_read_group(id);
 
-create rule "access_denied" as on insert to objects._groups
-where (not uac.can_read_group(new.parent_id))
-do instead nothing;
+create trigger insertb_00_access_denied before insert on objects._groups
+for each row
+when (not uac.can_read_group(new.parent_id))
+execute procedure triggers.reject();
 create rule "create" as on insert to objects.groups
 do instead
   insert into objects._groups (title, parent_id)
