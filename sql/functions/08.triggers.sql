@@ -33,9 +33,11 @@ end $$ language plpgsql;
 
 create or replace function triggers.notify_update ()
                     returns trigger as $$
+declare
+  msg varchar;
 begin
-  perform triggers.notify (tg_argv[0], tg_argv[1] || ' '
-    || tg_table_schema || ' ' || tg_table_name || ' ' || new.id);
+  msg = tg_op || ' ' || tg_argv[1] || ' ' || tg_table_schema || ' ' || tg_table_name || ' ' || new.id;
+  perform triggers.notify (tg_argv[0], msg);
   return new;
 end $$ language plpgsql;
 --------------------------------------------------------------------------------

@@ -28,12 +28,15 @@ insert into sensors.models (type_id, virtual) values
 
 create role "$user"         nocreatedb nocreaterole nocreateuser nologin noreplication;
 create role "$all"          nocreatedb nocreaterole nocreateuser nologin noreplication;
+alter table uac.groups disable trigger insertb_00_check_user_exists;
 insert into uac.groups values (default, null, '$all');
+alter table uac.groups enable trigger insertb_00_check_user_exists;
 create role "$manager"      nocreatedb nocreaterole nocreateuser nologin noreplication;
 create role "$user_manager" nocreatedb   createrole nocreateuser nologin noreplication;
 create role "$engineer"     nocreatedb nocreaterole nocreateuser nologin noreplication;
 
 grant execute on function uac.can_read_group(bigint) to "$user";
+grant usage on schema _users      to "$user";
 grant usage on schema events      to "$user";
 grant usage on schema navigation  to "$user";
 grant usage on schema object      to "$user";
@@ -42,6 +45,9 @@ grant usage on schema sensor      to "$user";
 grant usage on schema sensors     to "$user";
 grant usage on schema terminals   to "$user";
 grant usage on schema uac         to "$user";
+grant select on _users.data       to "$user";
+grant select on _users.groups     to "$user";
+grant select on _users.all        to "$user";
 grant select on events.data             to "$user";
 grant select on events.sensors          to "$user";
 grant select on objects.data            to "$user";

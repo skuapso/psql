@@ -5,6 +5,7 @@
 %% API
 -export([
   start_link/1,
+  start_link/2,
   start_link/9,
   insert/2,
   select/2,
@@ -66,6 +67,9 @@ function(Pid, {Schema, FunName, Params}) ->
 execute(Pid, {Query, Values}) ->
   execute(Pid, Query, Values).
 
+start_link(Pid, Timeout) ->
+  gen_fsm:start_link(?MODULE, [Pid, Timeout], [{timeout, Timeout}]).
+
 start_link([Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout, Commands]) ->
   start_link(Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout, Commands).
 
@@ -105,7 +109,9 @@ init([Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout, Commands]) ->
   trace("initialization"),
   gen_fsm:send_event(self(),
                      {connect, Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout, Commands}),
-  {ok, disconnected, #state{}, Timeout}.
+  {ok, disconnected, #state{}, Timeout};
+init([Pid, Timeout]) ->
+  {ok, ready, #state{socket = Pid, timeout = Timeout}, Timeout}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -295,7 +301,11 @@ select(Pid, Schema, Table, Filters, Opts) ->
     undefined -> "";
     LimitNum -> " limit " ++ integer_to_list(LimitNum)
   end,
-  Query = "select * from " ++ atom_to_list(Schema) ++ "." ++ atom_to_list(Table) ++ Conditions ++ Options,
+  MQuery = "select * from " ++ atom_to_list(Schema) ++ "." ++ atom_to_list(Table) ++ Conditions ++ Options,
+  Query = case proplists:get_value(json, Opts) of
+            true -> "select row_to_json(S.*) as json from (" ++ MQuery ++ ") as S";
+            undefined -> MQuery
+          end,
   execute(Pid, Query, Values).
 
 update(Pid, Schema, Table, SetList, ConditionList) ->

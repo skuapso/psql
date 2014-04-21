@@ -41,10 +41,7 @@ create table objects._groups(
     constraint zidx_groups_fk_parent references objects._groups(id)
       on delete set default
     constraint zidx_groups_ck_parent check(not(array[parent_id] <@ "group".childs(id)))
-    constraint zidx_groups_ck_self_parent check(not parent_id=id),
-  deleted boolean
-    not null
-    default false
+    constraint zidx_groups_ck_self_parent check(not parent_id=id)
 );
 
 create trigger insertb_00_set_id
@@ -66,7 +63,7 @@ create trigger updatea_zz_notify
   on objects._groups
   for each row
   when (new <> old)
-  execute procedure triggers.notify_update('ui', 'group');
+  execute procedure "group".notify_update();
 
 create sequence objects.seq__data;
 create table objects._data(
@@ -91,13 +88,6 @@ create table objects._data(
     not null
     default false
 );
-
-create trigger updatea_zz_notify
-  after update
-  on objects._data
-  for each row
-  when (new <> old)
-  execute procedure triggers.notify_update('ui', 'object');
 
 create trigger insertb_00_set_id
   before insert

@@ -23,7 +23,7 @@
   code_change/4
   ]).
 
--record(state, {connection}).
+-record(state, {worker, backend}).
 
 -include_lib("logger/include/log.hrl").
 %%%===================================================================
@@ -87,11 +87,12 @@ disconnected({connect, Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout, _Com
           {ssl, SSL}, {ssl_opts, SSLOpts},
           {timeout, Timeout}, {async, self()}],
   debug("connecting to ~s:~w, user ~s, opts ~w", [Host, Port, User, Opts]),
-  {ok, C} = pgsql:connect(Host, User, Passwd, Opts),
-  pgsql:squery(C, "listen system"),
-  pgsql:squery(C, "listen ui"),
+  {ok, Backend} = pgsql:connect(Host, User, Passwd, Opts),
+  {ok, C} = psql_worker:start_link(Backend, Timeout),
+  pgsql:squery(Backend, "listen system"),
+  pgsql:squery(Backend, "listen ui"),
   trace("connected"),
-  {next_state, ready, S#state{connection = C}}.
+  {next_state, ready, S#state{worker = C, backend = Backend}}.
 
 ready(Msg, S) ->
   warning("ready: unhandled msg ~w", [Msg]),
@@ -168,22 +169,10 @@ handle_sync_event(Event, From, StateName, State) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_info({pgsql, _Pid, {notification, <<"ui">>, _PgPid, Payment}},
-            StateName, #state{connection = C} = State) ->
-  {Type, Table, Schema, Id} = parse(Payment),
-  Query = <<"select row_to_json(O.*) as json from"
-              "(select *,$1::varchar as type from ",
-                Table/binary, ".", Schema/binary,
-              " where id=$2) as O"
-          >>,
-  [{Data}] = case pgsql:equery(C, Query, [Type, Id]) of
-           {ok, _, Row} ->
-             debug("ui notification ~w", [Row]),
-             Row;
-           Else ->
-             alert("unknown answer ~w", [Else]),
-             []
-         end,
-  hooks:run(ui, [{Type, Id}, Data]),
+            StateName, State) ->
+  Event = handle_msg(State, re:split(Payment, " ")),
+  debug("casting event ~w", [Event]),
+  hooks:run(ui, Event),
   {next_state, StateName, State};
 handle_info(stop, _StateName, State) ->
   {stop, normal, State};
@@ -220,10 +209,69 @@ code_change(_OldVsn, StateName, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-parse(Data) ->
-  [Type, Table, Schema | IdBin] = re:split(Data, " "),
-  Id = parse_id(IdBin),
-  {erlang:binary_to_atom(Type, latin1), Table, Schema, Id}.
+type2atom(<<"object">>) -> object;
+type2atom(<<"group">>) -> group;
+type2atom(<<"user">>) -> user.
 
-parse_id([IdBin]) ->
-  binary_to_integer(IdBin).
+bin2recipient(<<"user">>, User) -> {user, User};
+bin2recipient(Type, Id) -> {type2atom(Type), binary_to_integer(Id)}.
+
+table2atom(<<$_, Rest/binary>>) -> table2atom(Rest);
+table2atom(Table) -> binary_to_atom(Table, latin1).
+
+handle_msg(State, [<<"delete">>, <<"user">>, Username, ObjType, ObjId] = Msg) ->
+  hooks:run({ui, unsubscribe}, [unsubscribe, {user, Username}, bin2recipient(ObjType, ObjId)]),
+  handle_msg1(State, Msg);
+handle_msg(State, Msg) ->
+  handle_msg1(State, Msg).
+
+
+handle_msg1(State, [Action, ObjType, ObjId | _] = Msg) ->
+  debug("handling msg ~w", [Msg]),
+  Data = case handle_msg2(State, Msg) of
+           <<>> -> <<>>;
+           D -> <<",\"data\":", D/binary>>
+         end,
+  debug("data is ~w", [Data]),
+  Recipient = bin2recipient(ObjType, ObjId),
+  [Recipient,
+   <<"{\"action\":\"", Action/binary, "\"", Data/binary, "}">>].
+
+handle_msg2(_State, [_, ObjType, ObjId]) ->
+   <<"{\"", ObjType, "\":" , ObjId, "}">>;
+handle_msg2(_State, [_, <<"user">>, _, Type, Id]) ->
+  <<"{\"type\":\"", Type/binary, "\",\"id\":", Id/binary, "}">>;
+handle_msg2(State, [Action, ObjType, ObjId, Schema, Table]) ->
+  handle_msg2(State, [Action, ObjType, ObjId, Schema, Table, ObjId]);
+handle_msg2(#state{worker = C}, [_, _ObjType, _ObjId, Schema, Table, Id]) ->
+  psql_worker:select(C, {binary_to_atom(Schema, latin1), table2atom(Table),
+                         [{id, binary_to_integer(Id)}], [json]}),
+  MRef = monitor(process, C),
+  D = receive
+    {psql_worker, C, [[{json, Data}]]} ->
+      Data;
+    Answer when element(1, Answer) =:= psql_worker ->
+      warning("unknown answer ~w", [Answer]),
+      <<>>;
+    {'DOWN', MRef, _, _, Info} ->
+      throw({psql_worker, Info})
+  end,
+  demonitor(MRef),
+  D.
+
+%
+%  Query = <<"select row_to_json(O1.*) as json from ("
+%              "select $1::varchar as action, row_to_json(O.*) as data from"
+%                "(select *,$2::varchar as type from ",
+%                  Table/binary, ".", Schema/binary,
+%                " where id=$3"
+%              ") as O"
+%            ") as O1"
+%          >>,
+%  case pgsql:equery(C, Query, [Action, Type, Id]) of
+%    {ok, _, [{Data}]} ->
+%      debug("ui notification ~w", [Data]),
+%      hooks:run(ui, [{Type, Id}, Data]);
+%    Else ->
+%      alert("unknown answer ~w", [Else])
+%  end,
