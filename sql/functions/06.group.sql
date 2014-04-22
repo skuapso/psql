@@ -105,7 +105,11 @@ end $$ language plpgsql;
 create or replace function "group".notify_create() returns trigger as $$
 begin
   perform triggers.notify('ui',
-    'create group ' || new.parent_id || ' '
+    'create group '
+    || case when new.parent_id is null then 'null'::varchar
+        else new.parent_id::varchar
+       end
+    || ' '
     || tg_table_schema || ' ' || tg_table_name || ' ' || new.id);
   return new;
 end $$ language plpgsql;

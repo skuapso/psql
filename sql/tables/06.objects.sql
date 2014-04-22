@@ -58,12 +58,24 @@ create trigger updateb_00_check_parenting
   when (array[new.parent_id] <@ "group".childs(new.id))
     execute procedure triggers.reject();
 
-create trigger updatea_zz_notify
+create trigger updatea_zz_notify_update
   after update
   on objects._groups
   for each row
   when (new <> old)
   execute procedure "group".notify_update();
+
+create trigger updatea_zz_notify_create
+  after insert
+  on objects._groups
+  for each row
+  execute procedure "group".notify_create();
+
+create trigger updatea_zz_notify_delete
+  after delete
+  on objects._groups
+  for each row
+  execute procedure "group".notify_delete();
 
 create sequence objects.seq__data;
 create table objects._data(

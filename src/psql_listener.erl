@@ -215,7 +215,10 @@ type2atom(<<"terminal">>) -> terminal;
 type2atom(<<"user">>) -> user.
 
 bin2recipient(<<"user">>, User) -> {user, User};
-bin2recipient(Type, Id) -> {type2atom(Type), binary_to_integer(Id)}.
+bin2recipient(Type, Id) -> {type2atom(Type), to_integer(Id)}.
+
+to_integer(<<"null">>) -> null;
+to_integer(Id) when is_binary(Id) -> binary_to_integer(Id).
 
 table2atom(<<$_, Rest/binary>>) -> table2atom(Rest);
 table2atom(Table) -> binary_to_atom(Table, latin1).
