@@ -119,3 +119,43 @@ begin
   select sensor_id into sid from objects.sensors where id=$1;
   return sid;
 end $$ language plpgsql stable;
+
+create function object.notify_create() returns trigger as $$
+begin
+  perform triggers.notify('ui',
+    'create group ' || new.group_id || ' '
+    || tg_table_schema || ' ' || tg_table_name || ' ' || new.id);
+  return new;
+end $$ language plpgsql;
+
+create function object.notify_delete() returns trigger as $$
+begin
+  perform triggers.notify('ui',
+    'delete object ' || old.id || ' '
+    || tg_table_schema || ' ' || tg_table_name);
+  return new;
+end $$ language plpgsql;
+
+create function object.notify_update() returns trigger as $$
+begin
+  perform
+    triggers.notify('ui', 'delete user ' || user_name || ' object ' || new.id),
+    triggers.notify('ui', 'delete user ' || user_name || ' terminal ' || new.terminal_id)
+  from _users.data
+  where uac.can_read_group(user_name, old.group_id)
+  and not uac.can_read_group(user_name, new.group_id);
+
+  perform triggers.notify('ui', 'update object ' || new.id || ' '
+    || tg_table_schema || ' ' || tg_table_name)
+  from _users.data
+  where uac.can_read_group(user_name, old.group_id)
+  and uac.can_read_group(user_name, new.group_id)
+  limit 1;
+
+  perform triggers.notify('ui', 'create user ' || user_name || ' '
+    || tg_table_schema || ' ' || tg_table_name || ' ' || new.id)
+  from _users.data
+  where not uac.can_read_group(user_name, old.group_id)
+  and uac.can_read_group(user_name, new.group_id);
+  return new;
+end $$ language plpgsql;

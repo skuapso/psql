@@ -95,3 +95,24 @@ create trigger insertb_00_set_id
   for each row
   when (new.id is null)
   execute procedure triggers.set_id();
+
+create trigger inserta_00_notify_create
+  after insert
+  on objects._data
+  for each row
+  when (not new.deleted)
+  execute procedure object.notify_create();
+
+create trigger inserta_00_notify_update
+  after update
+  on objects._data
+  for each row
+  when (not new.deleted and not old.deleted)
+  execute procedure object.notify_update();
+
+create trigger inserta_00_notify_delete
+  after update
+  on objects._data
+  for each row
+  when (not old.deleted and new.deleted)
+  execute procedure object.notify_delete();
