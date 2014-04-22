@@ -211,6 +211,7 @@ code_change(_OldVsn, StateName, State, _Extra) ->
 %%%===================================================================
 type2atom(<<"object">>) -> object;
 type2atom(<<"group">>) -> group;
+type2atom(<<"terminal">>) -> terminal;
 type2atom(<<"user">>) -> user.
 
 bin2recipient(<<"user">>, User) -> {user, User};
@@ -220,6 +221,7 @@ table2atom(<<$_, Rest/binary>>) -> table2atom(Rest);
 table2atom(Table) -> binary_to_atom(Table, latin1).
 
 handle_msg(State, [<<"delete">>, <<"user">>, Username, ObjType, ObjId] = Msg) ->
+  debug("unsubscribing user ~w from ~w", [Username, {ObjType, ObjId}]),
   hooks:run({ui, unsubscribe}, [unsubscribe, {user, Username}, bin2recipient(ObjType, ObjId)]),
   handle_msg1(State, Msg);
 handle_msg(State, Msg) ->
