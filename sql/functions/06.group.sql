@@ -79,21 +79,39 @@ end $$ language plpgsql stable;
 
 create or replace function "group".notify_update() returns trigger as $$
 begin
-  perform triggers.notify('ui',
-    'create user ' || user_name || ' '
-    || tg_table_schema || ' ' || tg_table_name || ' ' || new.id)
-  from _users.data
-  where not uac.can_read_group(user_name, old.parent_id)
-  and uac.can_read_group(user_name, new.parent_id);
+  perform triggers.notify('ui', 'create user ' || U.user_name || ' objects groups ' || G.id)
+  from (
+    select user_name from _users.data
+    where not uac.can_read_group(user_name, old.parent_id)
+    and uac.can_read_group(user_name, new.parent_id)
+  ) U
+  full join (
+    select id
+    from objects.groups
+    where id=new.id
+    or array[id] <@ "group".childs(new.id)
+  ) G
+  on (true);
 
-  perform triggers.notify('ui',
-    'delete user ' || user_name || ' group ' || old.id)
+  perform triggers.notify('ui', 'create user ' || U.user_name || ' objects data ' || O.id)
+  from (
+    select user_name from _users.data
+    where not uac.can_read_group(user_name, old.parent_id)
+    and uac.can_read_group(user_name, new.parent_id)
+  ) U
+  full join (
+    select id
+    from objects.data
+    where group_id=new.id or array[group_id]<@"group".childs(new.id)
+  ) O
+  on (true);
+
+  perform triggers.notify('ui', 'delete user ' || user_name || ' group ' || old.id)
   from _users.data
   where uac.can_read_group(user_name, old.parent_id)
   and not uac.can_read_group(user_name, new.parent_id);
 
-  perform triggers.notify('ui',
-    'update group ' || new.id || ' ' || tg_table_schema || ' ' || tg_table_name)
+  perform triggers.notify('ui', 'update group ' || new.id || ' objects groups')
   from _users.data
   where uac.can_read_group(user_name, old.parent_id)
   and uac.can_read_group(user_name, new.parent_id)
