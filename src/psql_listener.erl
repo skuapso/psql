@@ -169,7 +169,7 @@ handle_sync_event(Event, From, StateName, State) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_info({pgsql, _Pid, {notification, <<"ui">>, _PgPid, Payment}},
-            StateName, State) ->
+            StateName, State) when Payment =/= <<>> ->
   Event = handle_msg(State, re:split(Payment, " ")),
   debug("casting event ~w", [Event]),
   hooks:run(ui, Event),
