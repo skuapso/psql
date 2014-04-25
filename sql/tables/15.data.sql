@@ -4,6 +4,7 @@
 create table data.connections(
   id timestamptz not null default current_timestamp,
   protocol terminals.protocols not null,
+  started timestamptz not null default now(),
   ended timestamptz default null,
   type connections.types not null,
   terminal_id bigint,
@@ -12,6 +13,7 @@ create table data.connections(
   constraint zidx_connections_fk_terminal foreign key(terminal_id) references terminals._data(id) on delete set null
 );
 create index zidx_connections_ik_terminal on data.connections(terminal_id);
+create index zidx_connections_ik_terminal_time on data.connections(terminal_id, started);
 comment on table data.connections is 'table for connections';
 
 create trigger insertb_zz_correct_id
