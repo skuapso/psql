@@ -212,6 +212,8 @@ code_change(_OldVsn, StateName, State, _Extra) ->
 type2atom(<<"object">>) -> object;
 type2atom(<<"group">>) -> group;
 type2atom(<<"terminal">>) -> terminal;
+type2atom(<<"object_model">>) -> object_model;
+type2atom(<<"specialization">>) -> specialization;
 type2atom(<<"user">>) -> user.
 
 bin2recipient(<<"user">>, User) -> {user, User};
