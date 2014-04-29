@@ -139,3 +139,13 @@ do instead
   returning *,'object_sensor'::varchar;
 
 create view objects.get as select *,object.title(id) as title from objects.data;
+
+create view events.data as
+  select *
+  from events._data
+  where object_id in (select id from objects.data);
+
+create view events.sensors as
+  select *
+  from events._sensors
+  where sensor_id in (select id from objects.sensors);

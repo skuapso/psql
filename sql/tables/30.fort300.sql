@@ -27,7 +27,7 @@ create rule update_object_event
   to fort300.navigation
   where (terminal.object(packet.terminal(new.id)) is not null)
   do also
-    insert into events.data
+    insert into events._data
     (id, type, object_id, terminal_id, time, location)
     values (
       new.id

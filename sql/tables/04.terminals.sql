@@ -20,7 +20,7 @@ create table terminals._data(
   id bigint,
   uin bigint not null,
   serial_no varchar not null,
-  period interval not null,
+  period interval not null default '0:3:0',
   model_id bigint not null,
   deleted boolean not null default false,
 

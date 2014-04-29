@@ -23,7 +23,7 @@ end $$ language plpgsql;
 
 create function event.update_object() returns trigger as $$
 begin
-  update objects.data set last_event_id=new.id where id=new.object_id;
+  update objects._data set last_event_id=new.id where id=new.object_id;
   return new;
 end $$ language plpgsql;
 

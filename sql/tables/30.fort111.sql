@@ -34,7 +34,7 @@ create rule update_object_event
   to fort111.navigation
   where (terminal.object(packet.terminal(new.id)) is not null)
   do also
-    insert into events.data
+    insert into events._data
     (id, type, object_id, terminal_id, time, location)
     values (
       new.id
@@ -64,7 +64,7 @@ create rule update_object_event_speed
     and object.sensor(terminal.object(packet.terminal(new.id)), 'analog', 'speed') is not null
   )
   do also
-    insert into events.sensors
+    insert into events._sensors
     values (
       new.id,
       object.sensor(terminal.object(packet.terminal(new.id)), 'analog', 'speed'),
@@ -136,7 +136,7 @@ create rule update_object_event
     and object.sensor(terminal.object(packet.terminal(new.id)), 'digital', new.sensor::varchar) is not null
   )
   do also
-    insert into events.sensors
+    insert into events._sensors
     values (
       new.id,
       object.sensor(terminal.object(packet.terminal(new.id)), 'digital', new.sensor::varchar),
