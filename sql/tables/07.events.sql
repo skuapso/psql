@@ -11,7 +11,6 @@ create table events._data(
     constraint zidx_data_fk_terminal references terminals._data(id) on delete set null
   ,time timestamptz
     not null
-  ,location geography
   ,valid boolean
     not null
     default true

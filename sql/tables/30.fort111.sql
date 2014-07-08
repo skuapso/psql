@@ -1,10 +1,3 @@
-create type fort111.boolean_sensors as enum ('penetration', 'ignition', 'glonass', 'gps');
-create type fort111.integer_sensors as enum ('boot_no', 'rfid');
-create type fort111.float_sensors as enum ('runned', 'hdop');
-create type fort111.transmitters as enum ('gsm', 'wifi');
-create type fort111.protocols as enum('2', '4');
-create type fort111.gsm_sensors as enum('no', 'mmc', 'mnc', 'lac', 'cell_id');
-
 create table fort111.navigation(
   id timestamptz,
   protocol fort111.protocols not null,
@@ -28,48 +21,6 @@ create table fort111.navigation(
   constraint zidx_navigation_pk primary key(id),
   constraint zidx_navigation_fk foreign key(id) references data.packets(id) on delete cascade
 );
-
-create rule update_object_event
-  as on insert
-  to fort111.navigation
-  where (terminal.object(packet.terminal(new.id)) is not null)
-  do also
-    insert into events._data
-    (id, type, object_id, terminal_id, time, location)
-    values (
-      new.id
-      ,packet.type(new.id)
-      ,terminal.object(packet.terminal(new.id))
-      ,packet.terminal(new.id)
-      ,case when new.eventtime is null then
-        new.terminal_eventtime
-      else
-        new.eventtime
-      end
-      ,case when new.used > 3 then
-        ('POINTZ('
-          || new.longitude::float || ' '
-          || new.latitude::float || ' '
-          || new.altitude || ')')::geography
-      else
-        null
-      end
-    );
-create rule update_object_event_speed
-  as on insert
-  to fort111.navigation
-  where (
-    terminal.object(packet.terminal(new.id)) is not null
-    and new.speed is not null
-    and object.sensor(terminal.object(packet.terminal(new.id)), 'analog', 'speed') is not null
-  )
-  do also
-    insert into events._sensors
-    values (
-      new.id,
-      object.sensor(terminal.object(packet.terminal(new.id)), 'analog', 'speed'),
-      new.speed::varchar
-    );
 
 create table fort111.signal(
   id timestamptz,
@@ -127,21 +78,6 @@ create table fort111.digital_in(
   constraint zidx_digital_in_pk primary key(id, sensor),
   constraint zidx_digital_in_fk foreign key(id) references fort111.navigation(id) on delete cascade
 );
-
-create rule update_object_event
-  as on insert
-  to fort111.digital_in
-  where (
-    terminal.object(packet.terminal(new.id)) is not null
-    and object.sensor(terminal.object(packet.terminal(new.id)), 'digital', new.sensor::varchar) is not null
-  )
-  do also
-    insert into events._sensors
-    values (
-      new.id,
-      object.sensor(terminal.object(packet.terminal(new.id)), 'digital', new.sensor::varchar),
-      new.value::varchar
-    );
 
 create table fort111.digital_out(
   id timestamptz,

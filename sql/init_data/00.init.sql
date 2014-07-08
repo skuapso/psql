@@ -7,23 +7,23 @@ insert into options.data (name, value) values
   ('radius_nas_auto_add', 'true')
   ;
 
-insert into terminals.models(id, title, protocols) values
-  (null, 'Телтоника', '{"teltonika"}'),
-  (null, 'Форт-111', '{"fort111"}'),
-  (null, 'Форт-300', '{"fort300"}'),
-  (null, 'Геликс-2', '{"gelix2nsk"}'),
-  (null, 'АвтоГис', '{"agis"}'),
-  (null, 'M2M GLX', '{"m2m"}'),
-  (null, 'Форт-300GL', '{"fort300"}');
+insert into terminals.models(title, protocols) values
+  ('Телтоника', '{"teltonika"}'),
+  ('Форт-111', '{"fort111","egts"}'),
+  ('Форт-300', '{"fort300"}'),
+  ('Геликс-2', '{"gelix2nsk"}'),
+  ('АвтоГис', '{"agis"}'),
+  ('M2M GLX', '{"m2m"}'),
+  ('Wialon', '{"wialon"}'),
+  ('Форт-300GL', '{"fort300"}');
+
+insert into objects.types (title) values ('Подвижный объект'), ('Стационарный объект');
 
 insert into sensors.types (port_type, data_type) values
   ('digital', 'bigint')
   ,('analog', 'float')
-  ;
-
-insert into sensors.models (type_id, virtual) values
-  (1, true)
-  ,(2, true)
+  ,('counter', 'bigint')
+  ,('location', 'geography')
   ;
 
 create role "$user"         nocreatedb nocreaterole nocreateuser nologin noreplication;
@@ -52,6 +52,7 @@ grant select on events.data             to "$user";
 grant select on events.sensors          to "$user";
 grant select on objects.data            to "$user";
 grant select on objects.groups          to "$user";
+grant select on objects.types           to "$user";
 grant select on objects.models          to "$user";
 grant select on objects.sensors         to "$user";
 grant select on objects.specializations to "$user";
@@ -76,6 +77,10 @@ grant update  on objects.seq__sensors         to "$manager";
 grant all     on objects.sensors              to "$manager";
 revoke delete on objects._sensors           from "$manager";
 
+grant update  on objects.seq_types            to "$manager";
+grant all     on objects.types                to "$manager";
+revoke delete on objects.types              from "$manager";
+
 grant update  on objects.seq_models           to "$manager";
 grant all     on objects.models               to "$manager";
 revoke delete on objects.models             from "$manager";
@@ -84,9 +89,9 @@ grant update  on objects.seq_specializations  to "$manager";
 revoke delete on objects.specializations    from "$manager";
 grant all     on objects.specializations      to "$manager";
 
-grant update  on sensors.seq_data             to "$manager";
-grant all     on sensors.data                 to "$manager";
-revoke delete on sensors.data               from "$manager";
+grant update  on sensors.seq_ids              to "$manager";
+grant all     on sensors._data                 to "$manager";
+revoke delete on sensors._data               from "$manager";
 
 grant update  on terminals.seq__data          to "$manager";
 grant all     on terminals.data               to "$manager";

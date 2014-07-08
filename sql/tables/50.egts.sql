@@ -1,10 +1,30 @@
+create table egts.active(
+  id timestamptz
+);
+
+create table egts.auth(
+  id timestamptz
+    constraint zidx_auth_pk primary key
+    constraint zidx_auth_fk references data.packets(id) on delete cascade,
+  terminal_id bigint not null,
+  hdid bigint,
+  imei bigint,
+  imsi varchar,
+  lngc varchar,
+  ssra boolean,
+  mcc int4,
+  mnc int4,
+  bs bigint,
+  msisdn varchar
+);
+
 create table egts.navigation(
   id timestamptz,
   eventtime timestamptz not null,
   latitude real not null,
   longitude real not null,
   parking boolean not null,
-  online boolean not null,
+  offline boolean not null,
   fix bigint not null,
   cs bigint not null,
   valid bigint not null,
@@ -18,7 +38,7 @@ create table egts.navigation(
   hdop bigint,
   pdop bigint,
   used bigint,
-  navigation_systems egts.navigation_systems,
+  navigation_systems bigint,
   state egts.states,
 
   constraint zidx_navigation_pk primary key(id),
@@ -46,7 +66,7 @@ create table egts.digital_out(
 create table egts.analog(
   id timestamptz,
   sensor bigint not null,
-  value real not null,
+  value bytea not null,
   constraint zidx_analog_pk primary key(id, sensor),
   constraint zidx_analog_fk foreign key(id) references egts.navigation(id) on delete cascade
 );
@@ -54,7 +74,7 @@ create table egts.analog(
 create table egts.counter(
   id timestamptz,
   sensor bigint not null,
-  value boolean not null,
+  value bigint not null,
 
   constraint zidx_counters_pk primary key(id, sensor),
   constraint zidx_counters_fk foreign key(id) references egts.navigation(id) on delete cascade
@@ -72,7 +92,7 @@ create table egts.boolean_sensor(
 create table egts.float_sensor(
   id timestamptz,
   sensor egts.float_sensors not null,
-  value boolean not null,
+  value real not null,
 
   constraint zidx_float_sensor_pk primary key(id, sensor),
   constraint zidx_float_sensor_fk foreign key(id) references egts.navigation(id) on delete cascade

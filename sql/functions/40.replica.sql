@@ -1,3 +1,6 @@
+create type replica.issue as enum('connection_timeout', 'connection_rejected', 'send_timeout', 'waiting_closed', 'wrong_answer');
+create type replica.connection_types as enum('soft', 'aggressive');
+
 create function replica.servers(_connection_id timestamptz) returns table(
   server_id bigint,
   server_protocol terminals.protocols) as $$

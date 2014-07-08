@@ -26,9 +26,9 @@ do also
   where user_name=new.user_name
   and array[group_id]<@"group".childs(new.group_id);
 
-raise warning 'should use "with (security_barrier)"';
-create view objects.groups as
-  select
+create view objects.groups
+with (security_barrier)
+as select
     id,
     title,
     case

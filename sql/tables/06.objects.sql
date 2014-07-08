@@ -14,13 +14,26 @@ create trigger insertb_00_set_id
   when (new.id is null)
   execute procedure triggers.set_id();
 
+create sequence objects.seq_types;
+create table objects.types(
+  id bigint
+    constraint zidx_types_pk primary key
+    default nextval('objects.seq_types'),
+  title varchar
+    not null
+    constraint zidx_types_uk_title unique
+);
+
 create sequence objects.seq_models;
 create table objects.models(
-  id bigint,
-  title varchar not null,
-
-  constraint zidx_models_pk primary key(id),
-  constraint zidx_models_uk_title unique(title)
+  id bigint
+    constraint zidx_models_pk primary key,
+  title varchar
+    not null
+    constraint zidx_models_uk_title unique,
+  type_id bigint
+    constraint zidx_models_fk_type references objects.types(id) on delete set null
+    default 1
 );
 
 create trigger insertb_00_set_id
@@ -100,6 +113,31 @@ create table objects._data(
     not null
     default false
 );
+
+create sequence objects.seq__sensors;
+create table objects._sensors(
+  id bigint
+    constraint zidx_sensors_pk primary key
+    default nextval('objects.seq__sensors')
+  ,object_id bigint
+    not null
+    constraint zidx_sensors_fk_object references objects._data(id)
+  ,sensor_id bigint
+    not null
+    constraint zidx_sensors_fk_sensor references sensors._data(id)
+  ,port_id varchar
+
+  ,constraint zidx_sensors_uk_object_sensor_port unique(object_id, sensor_id, port_id)
+);
+create unique index zidx_sensors_uk_sensor_not_virtual
+on objects._sensors(id) where (not sensor.virtual(sensor_id));
+
+create trigger insertb_50_set_id
+  before insert
+  on objects._sensors
+  for each row
+  when (new.id is null)
+  execute procedure triggers.set_id();
 
 create trigger insertb_00_set_id
   before insert

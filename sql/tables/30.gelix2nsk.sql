@@ -1,5 +1,3 @@
-create type gelix2nsk.sensors as enum('last_valid', 'restart_hw_fail', 'coldstart', 'zone_alarm');
-
 create table gelix2nsk.navigation(
   id timestamptz,
   msg_id bigint not null,
@@ -21,29 +19,6 @@ create table gelix2nsk.navigation(
   constraint zidx_navigation_pk primary key(id),
   constraint zidx_navigation_fk foreign key(id) references data.packets(id) on delete cascade
 );
-
-create rule update_object_event
-  as on insert
-  to gelix2nsk.navigation
-  where (terminal.object(packet.terminal(new.id)) is not null)
-  do also
-    insert into events._data
-    (id, type, object_id, terminal_id, time, location)
-    values (
-      new.id
-      ,packet.type(new.id)
-      ,terminal.object(packet.terminal(new.id))
-      ,packet.terminal(new.id)
-      ,new.eventtime
-      ,case when new.used > 3 then
-        ('POINTZ('
-            || new.longitude::float || ' '
-            || new.latitude::float || ' '
-            || new.hmet || ')')::geography
-      else
-        null
-      end
-    );
 
 create table gelix2nsk.digital_in(
   id timestamptz,

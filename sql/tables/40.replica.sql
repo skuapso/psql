@@ -4,8 +4,6 @@ create sequence replica.seq_exclude_rules;
 create sequence replica.seq_data;
 create sequence replica.seq_answers;
 create sequence replica.seq_issues;
-create type replica.issue as enum('connection_timeout', 'connection_rejected', 'send_timeout', 'waiting_closed', 'wrong_answer');
-create type replica.connection_types as enum('soft', 'aggressive');
 
 raise warning 'data should be send to somebody not to server';
 create table replica.servers(
