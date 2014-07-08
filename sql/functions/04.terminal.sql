@@ -8,6 +8,8 @@ create type terminals.command_send_type as enum(
 create type terminal.port_types as enum(
   'digital'
   ,'analog'
+  ,'counter'
+  ,'location'
 );
 
 create function terminal.add(
