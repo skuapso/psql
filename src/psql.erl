@@ -98,6 +98,7 @@ terminal_uin(_Pid, _, undefined, _Timeout) ->
 terminal_uin(_Pid, Module, UIN, Timeout) ->
   TerminalID = get_terminal_id({Module, UIN}, Timeout),
   ConnectionID = hooks:get(connection_id),
+  debug("setting terminal ~w on connection ~w", [TerminalID, ConnectionID]),
   hooks:set(terminal_id, TerminalID),
   Query = "update data.connections set terminal_id=$1 where id=$2",
   execute(1000, execute, {Query, [TerminalID, ConnectionID]}, Timeout),
@@ -120,18 +121,22 @@ terminal_raw_data(_Pid, _Module, _UIN, RawData, Timeout) ->
 
 terminal_packet(_Pid, Module, UIN, Type, RawPacket, Packet, Timeout) ->
   trace("terminal packet"),
-  {ok, PacketID} = insert_terminal_raw_packet(hooks:get(raw_id), RawPacket, Type, Timeout),
-  {TableName, Data} = case proplists:get_value(navigation, Packet, []) of
-    []  -> {active, proplists:get_value(active, Packet, [])};
-    D   -> {navigation, D}
-  end,
-  {ok, DataID} = insert_terminal_packet(PacketID, Module, Type, TableName, Data, Timeout),
-  debug("packet id is ~w", [DataID]),
-  {ok, DataID} = insert_terminal_packet(DataID, Module, Type,
-                                        proplists:delete(TableName, Packet), Timeout),
-  if
-    PacketID =:= 0 -> info("data repeat for {~w, ~w}", [Module, UIN]), stop;
-    true -> hooks:set(packet_id, PacketID), hooks:set(data_id, DataID), ok
+  case insert_terminal_raw_packet(hooks:get(raw_id), RawPacket, Type, Timeout) of
+    {ok, 0} ->
+      info("data repeat for {~w, ~w}", [Module, UIN]),
+      stop;
+    {ok, PacketID} ->
+      {TableName, Data} = case proplists:get_value(navigation, Packet, []) of
+                            []  -> {active, proplists:get_value(active, Packet, [])};
+                            D   -> {navigation, D}
+                          end,
+      {ok, DataID} = insert_terminal_packet(PacketID, Module, Type, TableName, Data, Timeout),
+      debug("packet id is ~w", [DataID]),
+      {ok, DataID} = insert_terminal_packet(DataID, Module, Type,
+                                            proplists:delete(TableName, Packet), Timeout),
+      hooks:set(packet_id, PacketID),
+      hooks:set(data_id, DataID),
+      ok
   end.
 
 terminal_answer(_Pid, Module, _UIN, Answer, Timeout) ->
