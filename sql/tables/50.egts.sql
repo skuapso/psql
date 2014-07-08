@@ -1,7 +1,3 @@
-create table egts.active(
-  id timestamptz
-);
-
 create table egts.auth(
   id timestamptz
     constraint zidx_auth_pk primary key
