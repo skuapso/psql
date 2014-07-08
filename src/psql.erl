@@ -72,11 +72,13 @@ connection_accepted(Pid, Proto, Socket, Timeout) when is_port(Socket) ->
 
 connection_closed(Pid, {incomplete, Data} ,Timeout) ->
   ConnectionID = hooks:get(Pid, connection_id),
-  {ok, _BrokenDataID} = execute(-10, insert, {data, broken, [{connection_id, ConnectionID}, {data, Data}]}, Timeout),
+  Id = now2id(),
+  {ok, _BrokenDataID} = execute(-10, insert, {data, broken, [{id, Id}, {connection_id, ConnectionID}, {data, Data}]}, Timeout),
   connection_closed(Pid, normal, Timeout);
 connection_closed(Pid, {function_clause, [{_Module, parse, [Data], _FileInfo} | _ ]}, Timeout) ->
   ConnectionID = hooks:get(Pid, connection_id),
-  {ok, _BrokenDataID} = execute(-10, insert, {data, broken, [{connection_id, ConnectionID}, {data, Data}]}, Timeout),
+  Id = now2id(),
+  {ok, _BrokenDataID} = execute(-10, insert, {data, broken, [{id, Id}, {connection_id, ConnectionID}, {data, Data}]}, Timeout),
   connection_closed(Pid, normal, Timeout);
 connection_closed(Pid, _Reason, Timeout) ->
   case hooks:get(Pid, connection_id) of
