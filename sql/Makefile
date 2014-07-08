@@ -1,7 +1,7 @@
-TABLES		:= $(wildcard tables/*.sql)
-FUNCTIONS	:= $(wildcard functions/*.sql)
-TRIGGERS	:= $(wildcard triggers/*.sql)
-INITDATA	:= $(wildcard init_data/*.sql)
+TABLES		:= $(shell ls tables/*.sql)
+FUNCTIONS	:= $(shell ls functions/*.sql)
+TRIGGERS	:= $(shell ls triggers/*.sql)
+INITDATA	:= $(shell ls init_data/*.sql)
 
 .PHONY: help install uninstall reinstall update
 .PHONY: install_schemas install_tables install_functions install_triggers install_init_data
