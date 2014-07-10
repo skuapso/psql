@@ -1,25 +1,61 @@
 --------------------------------------------------------------------------------
+-- data.binary
+--------------------------------------------------------------------------------
+create table data.binary(
+  data_id timestamptz
+    constraint "binary(data_id)" primary key
+    default current_timestamp,
+  data bytea not null
+);
+create unique index "binary(md5(data))" on data.binary(md5(data));
+
+create or replace function data.binary_id(
+  _id timestamptz,
+  _data bytea
+) returns timestamptz as $$
+  with
+  defined as (select data_id from data.binary where md5(data)=md5($2)),
+  count as (select count(*) from defined),
+  inserted as (insert into data.binary
+                select $1, $2
+                from count
+                where count.count=0
+                returning data_id)
+  select
+    case when count.count=0 then inserted.data_id
+    else defined.data_id
+    end as id
+  from defined
+  full join inserted on(true)
+  full join count on(true)
+$$ language sql;
+--------------------------------------------------------------------------------
+-- /data.binary
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
 -- data.connections
 --------------------------------------------------------------------------------
 create table data.connections(
-  id timestamptz not null default current_timestamp,
+  id timestamptz
+    constraint "connections(id)" primary key
+    default current_timestamp,
   protocol terminals.protocols not null,
-  started timestamptz not null default now(),
-  ended timestamptz default null,
+  closed timestamptz default null,
   type connections.types not null,
-  terminal_id bigint,
-
-  constraint zidx_connections_pk primary key(id),
-  constraint zidx_connections_fk_terminal foreign key(terminal_id) references terminals._data(id) on delete set null
+  terminal_id bigint
+    constraint "connections(terminal_id->terminals._data(id))"
+    references terminals._data(id) on delete set null
 );
-create index zidx_connections_ik_terminal on data.connections(terminal_id);
-create index zidx_connections_ik_terminal_time on data.connections(terminal_id, started);
+create index "connections(id, terminal_id)" on data.connections(id desc, terminal_id nulls last);
 comment on table data.connections is 'table for connections';
 
-create trigger insertb_zz_correct_id
-  before insert on data.connections for each row
-  when (checking.is_value_presents('data', 'connections', 'id', new.id))
-  execute procedure triggers.correct_timestamp_id();
+create function connection.set_terminal(
+  _id timestamptz,
+  _terminal_id bigint
+) returns timestamptz as $$
+  update data.connections set terminal_id=$2 where id=$1 returning id;
+$$ language sql;
 --------------------------------------------------------------------------------
 -- /data.connections
 --------------------------------------------------------------------------------
@@ -28,31 +64,26 @@ create trigger insertb_zz_correct_id
 -- data.broken
 --------------------------------------------------------------------------------
 create table data.broken(
-  like basic.binary_data including defaults including comments,
-  connection_id timestamptz not null default current_timestamp,
-  count bigint not null default 0,
-  last timestamptz not null default current_timestamp,
-
-  constraint zidx_broken_pk primary key(id),
-  constraint zidx_broken_fk_connection foreign key(connection_id) references data.connections(id) on delete cascade
+  id timestamptz
+    constraint "broken(data_id)" primary key,
+  data_id timestamptz
+    not null
+    constraint "broken(data_id->binary(data_id))"
+    references data.binary(data_id) on delete cascade,
+  connection_id timestamptz
+    not null
+    constraint "broken(connection_id->connection(id))"
+    references data.connections(id) on delete cascade,
+  repeat bool not null default false
 );
-create index zidx_broken_ik_connection on data.broken(connection_id);
-create unique index zidx_broken_uk_data on data.broken(md5(data));
 
-create rule add_count as
-  on insert to data.broken
-  where (checking.is_value_presents('data', 'broken', 'data', new.data)) do also
-  update data.broken set count=count+1,last=now() where md5(data)=md5(new.data);
-
-create trigger insertb_00_check_data
-  before insert on data.broken for each row
-  when (checking.is_value_presents('data', 'broken', 'data', new.data))
-  execute procedure triggers.reject();
-
-create trigger insertb_zz_correct_id
-  before insert on data.broken for each row
-  when (checking.is_value_presents('data', 'broken', 'id', new.id))
-  execute procedure triggers.correct_timestamp_id();
+create function data.broken(
+  _id timestamptz,
+  _data bytea,
+  _connection_id timestamptz)
+returns timestamptz as $$
+  insert into data.broken select $1, data.binary_id($1, $2), $3, false returning id
+$$ language sql;
 --------------------------------------------------------------------------------
 -- /data.broken
 --------------------------------------------------------------------------------
@@ -61,81 +92,88 @@ create trigger insertb_zz_correct_id
 -- data.raws
 --------------------------------------------------------------------------------
 create table data.raws(
-  like basic.binary_data including defaults including comments,
-  connection_id timestamptz not null,
-  count bigint not null default 0,
-  answer bytea,
-  answered varchar,
-  last timestamptz not null default current_timestamp,
-
-  constraint zidx_raws_pk primary key(id),
-  constraint zidx_raws_fk_connection foreign key(connection_id) references data.connections(id) on delete cascade
+  id timestamptz
+    constraint "raws(id)" primary key,
+  data_id timestamptz
+    not null
+    constraint "raws(data_id->binary(data_id))"
+    references data.binary(data_id) on delete cascade,
+  connection_id timestamptz
+    not null
+    constraint "raws(connection_id->connection(id))"
+    references data.connections(id) on delete cascade,
+  answer_id timestamptz
+    constraint "raws(answer_id)->binary(id))"
+    references data.binary(data_id) on delete set null,
+  answered varchar
 );
-create index zidx_raws_ik_connection on data.raws(connection_id);
-create unique index zidx_raws_uk_data on data.raws(md5(data));
 
-create rule add_answer as
-  on insert to data.raws
-  where (new.id is not null and new.answer is not null)
-  do also
-    update data.raws
-    set answer=new.answer,
-      answered=new.answered
-    where id=new.id;
-
-create rule add_count as
-  on insert to data.raws
-  where (checking.is_value_presents('data', 'raws', 'data', new.data)) do also
-  update data.raws set count=count+1,last=now() where md5(data)=md5(new.data);
-
-create trigger insertb_00_check_data
-  before insert on data.raws for each row
-  when (checking.is_value_presents('data', 'raws', 'data', new.data))
-  execute procedure triggers.reject();
-
-create trigger insertb_zz_correct_id
-  before insert on data.raws for each row
-  when (checking.is_value_presents('data', 'raws', 'id', new.id))
-  execute procedure triggers.correct_timestamp_id();
+create function data.raw(
+  _id timestamptz,
+  _data bytea,
+  _connection_id timestamptz)
+returns timestamptz as $$
+  with data as (select data.binary_id($1, $2) as id),
+  br as (insert into data.broken select $1, id, $3, true from data where id<>$1)
+  insert into data.raws select $1, id, $3 from data where id=$1 returning id;
+$$ language sql;
 --------------------------------------------------------------------------------
 -- /data.raws
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+-- data.answers
+--------------------------------------------------------------------------------
+create function data.answer(
+  _id timestamptz,
+  _data bytea,
+  _answered varchar
+) returns timestamptz as $$
+  with data as (select data.binary_id(now(), $2) as id)
+  update data.raws r set (answer_id, answered)=(d.id, $3) from data d where r.id=$1 returning r.id
+$$ language sql;
+--------------------------------------------------------------------------------
+-- /data.answers
 --------------------------------------------------------------------------------
 
 --------------------------------------------------------------------------------
 -- data.packets
 --------------------------------------------------------------------------------
 create table data.packets(
-  like basic.binary_data including defaults including comments,
-  count bigint not null default 0,
-  raw_id timestamptz not null,
-  type data.types not null,
-  last timestamptz not null default current_timestamp,
-
-  constraint zidx_packets_pk primary key(id),
-  constraint zidx_packets_fk_raw foreign key(raw_id) references data.raws(id) on delete cascade
+  id timestamptz
+    constraint "packets(id)" primary key
+    default current_timestamp,
+  data_id timestamptz
+    not null
+    constraint "packets(data_id->binary(data_id))"
+    references data.binary(data_id) on delete cascade,
+  raw_id timestamptz
+    not null
+    constraint "packets(raw_id->raw(id))"
+    references data.raws(id) on delete cascade,
+  type data.types not null
 );
-create unique index zidx_packets_uk_data on data.packets(md5(data));
-create index zidx_packets_ik_raw_id on data.packets(raw_id);
+create index "packets(raw_id)" on data.packets
+--using gin
+(raw_id);
 
-create rule add_packet_count as
-  on update to data.raws
-  where (new.count=old.count+1) do also
-  update data.packets set count=count+1,last=now() where raw_id=new.id;
+create function data.packet(
+  _id timestamptz,
+  _data bytea,
+  _raw_id timestamptz,
+  _type data.types
+) returns timestamptz as $$
+  with raw as (select id from data.raws where id=$3),
+    craw as (select count(*) from raw),
+    data as (select data.binary_id($1, $2) as id from craw where craw.count>0)
+    insert into data.packets
+    select $1, data.id, raw.id, $4 from data
+    inner join raw on(true)
+    inner join craw on(true)
+    where craw.count>0
+    returning id
+$$ language sql;
 
-create rule add_count as
-  on insert to data.packets
-  where (checking.is_value_presents('data', 'packets', 'data', new.data)) do also
-  update data.packets set count=count+1,last=now() where md5(data)=md5(new.data);
-
-create trigger insertb_00_check_data
-  before insert on data.packets for each row
-  when (checking.is_value_presents('data', 'packets', 'data', new.data))
-  execute procedure triggers.reject();
-
-create trigger insertb_zz_correct_id
-  before insert on data.packets for each row
-  when (checking.is_value_presents('data', 'packets', 'id', new.id))
-  execute procedure triggers.correct_timestamp_id();
 --------------------------------------------------------------------------------
 -- /data.packets
 --------------------------------------------------------------------------------
