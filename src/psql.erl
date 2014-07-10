@@ -54,66 +54,58 @@ connection_accepted(Pid, Proto, Socket, Timeout) when is_port(Socket) ->
   trace("new connection accepted"),
   {ok, {RemoteIP, RemotePort}} = inet:peername(Socket),
   {ok, {LocalIP, LocalPort}} = inet:sockname(Socket),
-  Query = "
-  with data_id as (
-    insert into data.connections (id, protocol, type)
-      values ($1, $2, 'ip')
-      returning id
-  ) insert into connections.ip_data
-      select D.id, $3, $4, $5, $6
-        from data_id D returning id",
   ConnectionId = now2id(),
-  S = execute(1000, execute, {Query, [ConnectionId, Proto, LocalIP, LocalPort, RemoteIP, RemotePort]}, Timeout),
-  debug ("returned ~w", [S]),
-  {ok, ConnectionID} = S,
+  [[{open, ConnectionID}]] = execute(1000, function, {connection, open,
+                               [ConnectionId, Proto, LocalIP, LocalPort, RemoteIP, RemotePort]},
+              Timeout),
   hooks:set(Pid, connection_id, ConnectionID),
   debug("~w connection id is ~w", [Pid, ConnectionID]),
   ok.
 
-connection_closed(Pid, {incomplete, Data} ,Timeout) ->
-  ConnectionID = hooks:get(Pid, connection_id),
-  Id = now2id(),
-  {ok, _BrokenDataID} = execute(-10, insert, {data, broken, [{id, Id}, {connection_id, ConnectionID}, {data, Data}]}, Timeout),
-  connection_closed(Pid, normal, Timeout);
-connection_closed(Pid, {function_clause, [{_Module, parse, [Data], _FileInfo} | _ ]}, Timeout) ->
-  ConnectionID = hooks:get(Pid, connection_id),
-  Id = now2id(),
-  {ok, _BrokenDataID} = execute(-10, insert, {data, broken, [{id, Id}, {connection_id, ConnectionID}, {data, Data}]}, Timeout),
-  connection_closed(Pid, normal, Timeout);
-connection_closed(Pid, _Reason, Timeout) ->
+connection_closed(Pid, normal, Timeout) ->
   case hooks:get(Pid, connection_id) of
     undefined ->
       alert("connection closed, but no connection ID specified for ~w", [Pid]),
       ok;
-    ConnectionID ->
-      debug("closing connection ~w", [ConnectionID]),
-      Query = "update data.connections set ended=now() where id=$1 returning id",
-      {ok, ConnectionID} = execute(-10, execute, {Query, [ConnectionID]}, Timeout),
+    ConnectionId ->
+      debug("closing connection ~w", [ConnectionId]),
+      [[{close, ConnectionId}]] = execute(-10, function, {connection, close, [ConnectionId]}, Timeout),
       trace("connection closed"),
       ok
-  end.
+  end;
+connection_closed(Pid, {broken, Data}, Timeout) ->
+  ConnectionId = hooks:get(Pid, connection_id),
+  Id = now2id(),
+  execute(-10, function, {data, broken, [Id, Data, ConnectionId]}, Timeout),
+  connection_closed(Pid, normal, Timeout);
+connection_closed(Pid, {incomplete, Data}, Timeout) ->
+  connection_closed(Pid, {broken, Data}, Timeout);
+connection_closed(Pid, {function_clause, [{_Module, parse, [Data], _FileInfo} | _ ]}, Timeout) ->
+  connection_closed(Pid, {broken, Data}, Timeout);
+connection_closed(Pid, Reason, Timeout) ->
+  warning("closed connection with unknown reason ~w", [Reason]),
+  connection_closed(Pid, normal, Timeout).
 
 terminal_uin(_Pid, _, undefined, _Timeout) ->
   ok;
 terminal_uin(_Pid, Module, UIN, Timeout) ->
-  TerminalID = get_terminal_id({Module, UIN}, Timeout),
-  ConnectionID = hooks:get(connection_id),
-  debug("setting terminal ~w on connection ~w", [TerminalID, ConnectionID]),
-  hooks:set(terminal_id, TerminalID),
-  Query = "update data.connections set terminal_id=$1 where id=$2",
-  execute(1000, execute, {Query, [TerminalID, ConnectionID]}, Timeout),
+  TerminalId = get_terminal_id({Module, UIN}, Timeout),
+  ConnectionId = hooks:get(connection_id),
+  debug("setting terminal ~w on connection ~w", [TerminalId, ConnectionId]),
+  hooks:set(terminal_id, TerminalId),
+  execute(1000, function, {connection, set_terminal, [ConnectionId, TerminalId]}, Timeout),
   ok.
 
 terminal_raw_data(_Pid, _Module, _UIN, RawData, Timeout) ->
   trace("terminal raw data"),
   ConnectionID = hooks:get(connection_id),
   RawID = now2id(),
-  case execute(1000, insert, {data, raws, [{id, RawID}, {connection_id, ConnectionID}, {data,  RawData}]}, Timeout) of
-    {ok, 0} ->
+  case execute(1000, function, {data, raw, [RawID, RawData, ConnectionID]}, Timeout) of
+    [[{raw, null}]] ->
       debug("data repeat"),
       hooks:delete(raw_id),
       stop;
-    {ok, RawID} ->
+    [[{raw, RawID}]] ->
       debug("raw id is ~w", [RawID]),
       hooks:set(raw_id, RawID),
       ok
@@ -143,10 +135,9 @@ terminal_answer(_Pid, Module, _UIN, Answer, Timeout) ->
   trace("terminal answer"),
   case hooks:get(raw_id) of
     undefined ->
-      trace("now raw id"),
       stop;
     RawDataID ->
-      {ok, _RawDataID} = execute(1000, insert, {data, raws, [{id, RawDataID}, {answer, Answer}, {answered, Module}]}, Timeout),
+      execute(1000, function, {data, answer, [RawDataID, Answer, Module]}, Timeout),
       ok
   end.
 
@@ -339,8 +330,11 @@ insert_terminal_raw_packet(RawID, _RawPacket, _Type, _Timeout)
     ->
   {ok, 0};
 insert_terminal_raw_packet(RawID, RawPacket, Type, Timeout) ->
-  execute(1000, insert, {data, packets, [{id, now2id()}, {raw_id, RawID}, {data, RawPacket}, {type, Type}]}, Timeout).
-
+  PacketId = now2id(),
+  case execute(1000, function, {data, packet, [PacketId, RawPacket, RawID, Type]}, Timeout) of
+    [[{packet, PacketId}]] -> {ok, PacketId};
+    _ -> {ok, 0}
+  end.
 
 insert_terminal_packet(PacketID, _Module, Type, _Table, _Packet, _Timeout)
     when PacketID =:= 0; PacketID =:= undefined; PacketID =:= null;
