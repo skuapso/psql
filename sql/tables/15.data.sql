@@ -151,7 +151,9 @@ create table data.packets(
     not null
     constraint "packets(raw_id->raw(id))"
     references data.raws(id) on delete cascade,
-  type data.types not null
+  type data.types not null,
+--  eventtime timestamptz not null,
+  data jsonb not null
 );
 create index "packets(raw_id)" on data.packets
 --using gin
@@ -161,13 +163,15 @@ create function data.packet(
   _id timestamptz,
   _data bytea,
   _raw_id timestamptz,
-  _type data.types
+  _type data.types,
+--  _eventtime timestamptz,
+  _desc jsonb
 ) returns timestamptz as $$
   with raw as (select id from data.raws where id=$3),
     craw as (select count(*) from raw),
     data as (select data.binary_id($1, $2) as id from craw where craw.count>0)
     insert into data.packets
-    select $1, data.id, raw.id, $4 from data
+    select $1, data.id, raw.id, $4, $5 from data
     inner join raw on(true)
     inner join craw on(true)
     where craw.count>0
