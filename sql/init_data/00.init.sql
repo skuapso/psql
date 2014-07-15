@@ -1,7 +1,7 @@
 insert into options.data (name, value) values
   ('terminal_auto_add', 'true'),
   ('sim_auto_add', 'true'),
-  ('sim_first_address', '10.255.224.0/32'),
+  ('sim_first_address', '10.0.0.0/32'),
   ('primary_dns', '8.8.8.8'),
   ('secondary_dns', '8.8.4.4'),
   ('radius_nas_auto_add', 'true')
@@ -26,14 +26,25 @@ insert into sensors.types (port_type, data_type) values
   ,('location', 'geography')
   ;
 
-create role "$user"         nocreatedb nocreaterole nocreateuser nologin noreplication;
+drop role "$all";
+drop role "$engineer";
+drop role "$user_manager";
+drop role "$manager";
+drop role "$user";
+drop role "$radius";
+drop role "$writer";
+
 create role "$all"          nocreatedb nocreaterole nocreateuser nologin noreplication;
+create role "$engineer"     nocreatedb nocreaterole nocreateuser nologin noreplication;
+create role "$user_manager" nocreatedb   createrole nocreateuser nologin noreplication;
+create role "$manager"      nocreatedb nocreaterole nocreateuser nologin noreplication;
+create role "$user"         nocreatedb nocreaterole nocreateuser nologin noreplication;
+create role "$radius"       nocreatedb nocreaterole nocreateuser nologin noreplication;
+create role "$writer"       nocreatedb nocreaterole nocreateuser nologin noreplication;
+
 alter table uac.groups disable trigger insertb_00_check_user_exists;
 insert into uac.groups values (default, null, '$all');
 alter table uac.groups enable trigger insertb_00_check_user_exists;
-create role "$manager"      nocreatedb nocreaterole nocreateuser nologin noreplication;
-create role "$user_manager" nocreatedb   createrole nocreateuser nologin noreplication;
-create role "$engineer"     nocreatedb nocreaterole nocreateuser nologin noreplication;
 
 grant execute on function uac.can_read_group(bigint) to "$user";
 grant usage on schema _users      to "$user";
@@ -96,3 +107,22 @@ revoke delete on sensors._data               from "$manager";
 grant update  on terminals.seq__data          to "$manager";
 grant all     on terminals.data               to "$manager";
 revoke delete on terminals._data            from "$manager";
+
+raise warning 'i think it should be done differently';
+-- grant select on options.data to public?
+-- may be alter table options.data add column "module" and create view for each module?
+grant usage on schema option to "$writer";
+grant usage on schema options to "$writer";
+grant select on options.data to "$writer";
+
+grant "$writer" to "$radius";
+grant usage   on schema radius          to "$radius";
+grant all     on radius.nas             to "$radius";
+grant all     on radius.nas_apns        to "$radius";
+grant all     on radius.nas_ips         to "$radius";
+grant update  on radius.seq_nas         to "$radius";
+
+grant usage   on schema sim             to "$radius";
+grant usage   on schema sims            to "$radius";
+grant all     on sims.data              to "$radius";
+grant all     on sims.sessions          to "$radius";
