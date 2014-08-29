@@ -51,6 +51,8 @@ end $$ language plpgsql;
 
 create function sim.close_session() returns trigger as $$
 begin
-  update sims.sessions set updated=now(),terminate_cause='Unknown' where sim_id=new.sim_id and terminate_cause is null;
+  update sims.sessions
+  set updated=now(),terminating_reason='Unknown'
+  where sim_id=new.sim_id and terminating_reason is null;
   return new;
 end $$ language plpgsql;

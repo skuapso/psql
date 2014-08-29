@@ -98,6 +98,17 @@ begin
   where terminal_id=$1 and executed is null order by dbtime desc limit 1;
 end $$ language plpgsql stable;
 
+create function terminal.command_executed(
+  _terminal_id bigint,
+  _command_id bigint)
+returns bool
+language plpgsql
+as $$
+begin
+  update terminals.commands set executed=now() where id=$2;
+  return found;
+end $$;
+
 create function terminal.object(_terminal_id bigint) returns bigint as $$
 begin
   return terminal.object($1, current_timestamp);
@@ -114,3 +125,16 @@ begin
   limit 1;
   return i;
 end $$ language plpgsql immutable;
+
+create function terminal.set_info(
+  _terminal_id bigint,
+  _info jsonb)
+returns setof jsonb
+as $$
+begin
+  return query
+  update terminals._data
+  set info=data.merge(info, $2)
+  where id=$1
+  returning info;
+end $$ language plpgsql;

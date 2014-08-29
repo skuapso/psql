@@ -1,22 +1,55 @@
 create table replica.m2m(
-  id timestamptz default current_timestamp,
-  type data.types not null,
-  terminal_id bigint not null,
-  eventtime timestamptz not null,
-  latitude navigation.coords_gm not null,
-  longitude navigation.coords_gm not null,
-  used bigint not null default 0,
-  speed bigint not null default 0,
-  course bigint not null default 0,
-  track real not null default 0,
-  action bigint not null default 0,
-  reboot bigint not null default 0,
+  id timestamptz
+    default current_timestamp
+    constraint "m2m(id)" primary key,
 
-  constraint zidx_m2m_pk primary key(id)
-  ,constraint zidx_m2m_fk_terminal foreign key (terminal_id) references terminals._data(id) on delete cascade
+  type data.types
+    not null,
+
+  terminal_id bigint
+    not null
+    constraint "m2m->terminals.data"
+    references terminals._data(id)
+    on delete cascade,
+
+  eventtime timestamptz
+    not null,
+
+  latitude navigation.coords_gm
+    not null,
+
+  longitude navigation.coords_gm
+    not null,
+
+  used bigint
+    not null
+    default 0,
+
+  speed bigint
+    not null
+    default 0,
+
+  course bigint
+    not null
+    default 0,
+
+  track real
+    not null
+    default 0,
+
+  action bigint
+    not null
+    default 0,
+
+  reboot bigint
+    not null
+    default 0
 );
-create trigger insertb_zz_correct_id
-  before insert on replica.m2m for each row
+
+create trigger "=>insert correct_id"
+  before insert
+  on replica.m2m
+  for each row
   when (checking.is_value_presents('replica', 'm2m', 'id', new.id))
   execute procedure triggers.correct_timestamp_id();
 
@@ -58,7 +91,6 @@ begin
   order by t.eventtime
   limit 1;
 
-  raise notice 'checking for terminal %, eventtime is %', _terminal_id, _eventtime;
   if prev is not null then
     if prev.eventtime = _eventtime then
       tr = prev.track;
@@ -122,7 +154,6 @@ begin
     end if;
   end if;
 
-  raise notice 'returning track: %, action: %, reboot: %', tr, act, re;
   return query select floor(tr / 100)::bigint,act::bigint,re::bigint;
 
   delete from replica.m2m t

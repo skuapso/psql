@@ -23,6 +23,7 @@ create table terminals._data(
   period interval not null default '0:3:0',
   model_id bigint not null,
   deleted boolean not null default false,
+  info jsonb,
 
   constraint zidx_terminals_pk primary key(id),
   constraint zidx_terminals_uk_uin_model unique(uin, model_id),

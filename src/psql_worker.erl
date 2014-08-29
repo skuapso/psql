@@ -289,7 +289,8 @@ normalize_row([{column, BinName, _Type, _ByteSize, _, _} | Columns], [Value | Ro
 
 insert(Pid, Schema, Table, Data) ->
   {ok, Columns, Params, Values} = prepare_insert_data (Data),
-  Query = "insert into " ++ atom_to_list(Schema) ++ "." ++ atom_to_list(Table) ++ " (" ++ Columns ++ ") values (" ++ Params ++ ") returning id",
+  Relation = relation({Schema, Table}),
+  Query = iolist_to_binary(["insert into ", Relation, " (", Columns, ") values (", Params, ") returning id"]),
   execute(Pid, Query, Values).
 
 select(Pid, Schema, Table, Filters, Opts) ->
@@ -301,9 +302,10 @@ select(Pid, Schema, Table, Filters, Opts) ->
     undefined -> "";
     LimitNum -> " limit " ++ integer_to_list(LimitNum)
   end,
-  MQuery = "select * from " ++ atom_to_list(Schema) ++ "." ++ atom_to_list(Table) ++ Conditions ++ Options,
+  Relation = relation({Schema, Table}),
+  MQuery = iolist_to_binary(["select * from ", Relation, Conditions, Options]),
   Query = case proplists:get_value(json, Opts) of
-            true -> "select row_to_json(S.*) as json from (" ++ MQuery ++ ") as S";
+            true -> <<"select row_to_json(S.*) as json from (", MQuery/binary, ") as S">>;
             undefined -> MQuery
           end,
   execute(Pid, Query, Values).
@@ -312,12 +314,14 @@ update(Pid, Schema, Table, SetList, ConditionList) ->
   {ok, SetCols, SetVals} = prepare_update_data(SetList),
   {ok, Conditions, CondVals} = prepare_select_data(ConditionList, length(SetVals) + 1),
   Params = SetVals ++ CondVals,
-  Query = "update " ++ atom_to_list(Schema) ++ "." ++ atom_to_list(Table) ++ " set " ++ SetCols ++ Conditions ++ " returning id",
+  Relation = relation({Schema, Table}),
+  Query = iolist_to_binary(["update ", Relation, " set ", SetCols, Conditions, " returning id"]),
   execute(Pid, Query, Params).
 
 function(Pid, Schema, FunName, Params) ->
   {ok, BoundList} = prepare_function_data(Params),
-  Query = "select * from " ++ atom_to_list(Schema) ++ "." ++ atom_to_list(FunName) ++ " (" ++ BoundList ++ ")",
+  Relation = relation({Schema, FunName}),
+  Query = iolist_to_binary(["select * from ", Relation, "(", BoundList, ")"]),
   execute(Pid, Query, Params).
 
 execute(Pid, Query, Values) ->
@@ -381,3 +385,15 @@ prepare_function_data([_Param | Params], PList, N) ->
 
 close(undefined) -> ok;
 close(Pid) when is_pid(Pid) -> pgsql:close(Pid).
+
+relation(Rel) when is_binary(Rel) -> Rel;
+relation({Schema, Name}) when is_binary(Schema), is_binary(Name) ->
+  relation(<<Schema/binary, ".", Name/binary>>);
+relation({Schema, Name}) when is_atom(Schema) ->
+  relation({atom_to_binary(Schema, latin1), Name});
+relation({Schema, Name}) when is_atom(Name) ->
+  relation({Schema, atom_to_binary(Name, latin1)});
+relation({Schema, Name}) when is_list(Schema) ->
+  relation({list_to_binary(Schema), Name});
+relation({Schema, Name}) when is_list(Name) ->
+  relation({Schema, list_to_binary(Name)}).

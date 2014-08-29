@@ -3,18 +3,19 @@
 -behaviour(application).
 -behaviour(supervisor).
 
+-export([json_enc/1]).
+-export([pre_json/1]).
 %% hooks
--export([
-  connection_accepted/4,
-  connection_closed/3,
-  terminal_uin/4,
-  terminal_raw_data/5,
-  terminal_answer/5,
-  terminal_packet/7,
-  get/5,
-  set/5,
-  get_opts/1
-  ]).
+-export([connection_accepted/4]).
+-export([connection_closed/3]).
+-export([terminal_uin/3]).
+-export([terminal_info/4]).
+-export([terminal_raw_data/4]).
+-export([terminal_answer/5]).
+-export([terminal_packet/4]).
+-export([get/5]).
+-export([set/5]).
+-export([get_opts/1]).
 
 %% API
 -export([
@@ -69,14 +70,16 @@ connection_closed(Pid, normal, Timeout) ->
       ok;
     ConnectionId ->
       debug("closing connection ~w", [ConnectionId]),
-      [[{close, ConnectionId}]] = execute(-10, function, {connection, close, [ConnectionId]}, Timeout),
-      trace("connection closed"),
-      ok
+      case execute(-10, function, {connection, close, [ConnectionId]}, Timeout) of
+        [[{close, ConnectionId}]] -> trace("connection closed"), ok;
+        [[{close, null}]] -> alert("no connection in DB ~w", [ConnectionId]), ok;
+        [] -> alert("no connection in DB ~w", [ConnectionId]), ok
+      end
   end;
 connection_closed(Pid, {broken, Data}, Timeout) ->
   ConnectionId = hooks:get(Pid, connection_id),
   Id = now2id(),
-  execute(-10, function, {data, broken, [Id, Data, ConnectionId]}, Timeout),
+  execute(-10, function, {data, add_broken, [Id, Data, ConnectionId]}, Timeout),
   connection_closed(Pid, normal, Timeout);
 connection_closed(Pid, {incomplete, Data}, Timeout) ->
   connection_closed(Pid, {broken, Data}, Timeout);
@@ -86,57 +89,75 @@ connection_closed(Pid, Reason, Timeout) ->
   warning("closed connection with unknown reason ~w", [Reason]),
   connection_closed(Pid, normal, Timeout).
 
-terminal_uin(_Pid, _, undefined, _Timeout) ->
-  ok;
-terminal_uin(_Pid, Module, UIN, Timeout) ->
-  TerminalId = get_terminal_id({Module, UIN}, Timeout),
+terminal_uin(_Pid, Terminal, Timeout) ->
+  TerminalId = get_terminal_id(Terminal, Timeout),
   ConnectionId = hooks:get(connection_id),
   debug("setting terminal ~w on connection ~w", [TerminalId, ConnectionId]),
   hooks:set(terminal_id, TerminalId),
   execute(10, function, {connection, set_terminal, [ConnectionId, TerminalId]}, Timeout),
   ok.
 
-terminal_raw_data(_Pid, _Module, _UIN, RawData, Timeout) ->
+terminal_info(_Pid, Terminal, Info, Timeout) ->
+  debug("setting terminal ~w info ~w", [Terminal, Info]),
+  TerminalId = get_terminal_id(Terminal, Timeout),
+  execute(5, function, {terminal, set_info, [TerminalId, json_enc(Info)]}, Timeout),
+  ok.
+
+terminal_raw_data(_Pid, _Terminal, RawData, Timeout) ->
   trace("terminal raw data"),
   ConnectionID = hooks:get(connection_id),
   RawID = now2id(),
-  case execute(1000, function, {data, raw, [RawID, RawData, ConnectionID]}, Timeout) of
-    [[{raw, null}]] ->
+  case execute(1000, function, {data, add_raw, [RawID, RawData, ConnectionID]}, Timeout) of
+    [] ->
       debug("data repeat"),
       hooks:delete(raw_id),
       stop;
-    [[{raw, RawID}]] ->
+    [[{add_raw, null}]] ->
+      debug("data repeat"),
+      hooks:delete(raw_id),
+      stop;
+    [[{add_raw, RawID}]] ->
       debug("raw id is ~w", [RawID]),
       hooks:set(raw_id, RawID),
       ok
   end.
 
-terminal_packet(_Pid, _Module, _UIN, Type, RawPacket, Packet, Timeout) ->
+terminal_packet(_Pid, _Terminal, #{type := Type,
+                                   raw := RawPacket
+                                  } = Packet, Timeout) ->
   trace("terminal packet"),
-  PacketJSON = json_enc(Packet),
+  Eventtime = case maps:get(eventtime, Packet, undefined) of
+                undefined -> erlang:universaltime();
+                ET -> ET
+              end,
+  PacketJSON = json_enc(maps:without([type, raw, eventtime], Packet)),
   case hooks:get(raw_id) of
     undefined -> stop;
     RawId ->
-      case execute(1000, function, {data, packet,
-                                    [now2id(), RawPacket, RawId, Type, PacketJSON]}, Timeout) of
-        [[{packet, null}]] ->
+      case execute(1000,
+                   function,
+                   {data, add_packet,
+                    [now2id(), RawPacket, RawId, Type, Eventtime, PacketJSON]},
+                   Timeout) of
+        [] ->
           hooks:delete(packet_id),
-          hooks:delete(data_id),
           stop;
-        [[{packet, PacketId}]] ->
+        [[{add_packet, null}]] ->
+          hooks:delete(packet_id),
+          stop;
+        [[{add_packet, PacketId}]] ->
           hooks:set(packet_id, PacketId),
-          hooks:set(data_id, PacketId),
           ok
       end
   end.
 
-terminal_answer(_Pid, Module, _UIN, Answer, Timeout) ->
+terminal_answer(_Pid, _Terminal, Module, Answer, Timeout) ->
   trace("terminal answer"),
   case hooks:get(raw_id) of
     undefined ->
       stop;
     RawDataID ->
-      execute(600, function, {data, answer, [RawDataID, Answer, Module]}, Timeout),
+      execute(600, function, {data, set_answer, [RawDataID, Answer, Module]}, Timeout),
       ok
   end.
 
@@ -148,7 +169,9 @@ get(_Pid, replica, servers, {_Module, _UIN}, Timeout) ->
   trace("getting servers"),
   TerminalID = hooks:get(terminal_id),
   ConnectionID = hooks:get(connection_id),
-  ServersPrepare = execute(100, function, {replica, servers, [TerminalID, ConnectionID]}, Timeout),
+  ServersPrepare = execute(100, function,
+                           {replica, get_servers, [TerminalID, ConnectionID]},
+                           Timeout),
   Servers = lists:map(
       fun(X) ->
           ServerId = proplists:get_value(server_id, X),
@@ -157,9 +180,9 @@ get(_Pid, replica, servers, {_Module, _UIN}, Timeout) ->
       end, ServersPrepare),
   debug("servers: ~w", [Servers]),
   {ok, {?MODULE, Servers}};
-get(_Pid, replica, servers, Filter, Timeout) ->
+get(_Pid, replica, server_info, ServerId, Timeout) ->
   trace("getting server info"),
-  {ok, {?MODULE, execute(30000, select, {replica, servers, Filter}, Timeout)}};
+  {ok, {?MODULE, execute(30000, function, {replica, server_info, [ServerId]}, Timeout)}};
 get(_Pid, replica, data, {ServerID, Terminal, Points}, Timeout) ->
   TerminalID = get_terminal_id(Terminal, Timeout),
   Reply = lists:map(
@@ -169,16 +192,16 @@ get(_Pid, replica, data, {ServerID, Terminal, Points}, Timeout) ->
           Proto = binary_to_atom(proplists:get_value(protocol, X), latin1),
           [{id, ID}, {data, Data}, {protocol, Proto}]
       end,
-      execute(15000, select, {replica, data,
-                       [{server_id, ServerID},{terminal_id, TerminalID}, {answer_id, null}],
-                       [{order, "id"}, {limit, Points}]},
+      execute(15000, function,
+              {replica, undelivered,
+                       [ServerID, TerminalID, Points]},
               Timeout)),
   {ok, {?MODULE, Reply}};
 get(_Pid, replica, undelivered, [], Timeout) ->
-  Data = execute(25000, function, {replica, data, []}, Timeout),
+  Data = execute(25000, function, {replica, undelivered, []}, Timeout),
   {ok, {?MODULE, Data}};
 get(_Pid, replica, undelivered, ServerID, Timeout) ->
-  Data = execute(20000, function, {replica, data, [ServerID]}, Timeout),
+  Data = execute(20000, function, {replica, undelivered, [ServerID]}, Timeout),
   {ok, {?MODULE, Data}};
 get(_Pid, m2m, track_info, {Type, EventTime, Lat, Lon, Used, Speed, Course}, Timeout) ->
   trace("searching for m2m track info"),
@@ -192,8 +215,9 @@ get(_Pid, m2m, track_info, {Type, EventTime, Lat, Lon, Used, Speed, Course}, Tim
   debug("reply is ~w", [Reply]),
   {ok, {?MODULE, Reply}};
 get(_Pid, terminal, command, Terminal, Timeout) ->
+  TerminalId = get_terminal_id(Terminal, Timeout),
   case execute(10, function,
-                      {terminal, command, [get_terminal_id(Terminal, Timeout)]},
+                      {terminal, command, [TerminalId]},
                       Timeout) of
     [] -> ok;
     [D] ->
@@ -211,41 +235,30 @@ set(_Pid, replica, data, {_ServerID, _ServerProto, <<>>}, _Timeout) ->
 set(_Pid, replica, data, {ServerID, ServerProto, Data}, Timeout) ->
   PacketID = hooks:get(packet_id),
   TerminalID = hooks:get(terminal_id),
-  execute(700, insert, {replica, data, [
-        {id, now2id()},
-        {parent_id, PacketID},
-        {server_id, ServerID},
-        {protocol, ServerProto},
-        {data, Data},
-        {terminal_id, TerminalID}
-        ]}, Timeout),
+  execute(700, function,
+          {replica, add_data,
+           [now2id(), PacketID, ServerID, ServerProto, Data, TerminalID]},
+          Timeout),
   ok;
 set(_Pid, replica, answer, {DataIDs, Answer}, Timeout) ->
   ConnectionID = hooks:get(connection_id),
-  {ok, AnswerID} = execute(1000, insert, {replica, answers, [
-        {id, now2id()},
-        {data, Answer},
-        {connection_id, ConnectionID}
-        ]}, Timeout),
-  lists:map(fun(X) ->
-        Query = "update replica.data set answer_id=$1 where id=$2 returning id",
-        execute(1500, execute, {Query, [AnswerID, X]}, Timeout)
-    end, DataIDs),
+  [[{set_answer, AnswerID}]] = execute(1000, function,
+                                       {replica, set_answer,
+                                        [now2id(), Answer, ConnectionID, DataIDs]},
+                                       Timeout),
   hooks:set(answer_id, AnswerID),
   ok;
 set(_Pid, replica, add_answer, Answer, Timeout) ->
-  AnswerID = hooks:get(answer_id),
-  Query = "update replica.answers set data=data || $1 where id=$2",
-  execute(1200, execute, {Query, [Answer, AnswerID]}, Timeout),
+  AnswerId = hooks:get(answer_id),
+  execute(-2, function, {replica, expand_answer, [AnswerId, Answer]}, Timeout),
   ok;
 set(_Pid, terminal, command, {Terminal, Command}, Timeout) ->
-  execute(50000, insert, {terminals, commands, [
-        {terminal_id, get_terminal_id(Terminal, Timeout)},
-        {command, Command}]}),
+  execute(50000, function,
+          {terminal, add_command, [get_terminal_id(Terminal, Timeout), Command]}, Timeout),
   ok;
-set(_Pid, terminal, command_exec, {_Terminal, Command}, Timeout) ->
-  Query = "update terminals.commands set executed=now() where id=$1",
-  execute(10, execute, {Query, [Command]}, Timeout),
+set(_Pid, terminal, command_exec, {Terminal, CommandId}, Timeout) ->
+  execute(10, function,
+          {terminal, command_executed, [get_terminal_id(Terminal, Timeout), CommandId]}, Timeout),
   ok;
 set(_Pid, _From, _What, _Data, _Timeout) ->
   ok.
@@ -257,15 +270,16 @@ init(Opts) ->
   MaxConnections = misc:get_env(?MODULE, max_connections, Opts),
   QueueSize = misc:get_env(?MODULE, queue_size, Opts, MaxConnections),
   HooksWeight = misc:get_env(?MODULE, weight, Opts),
-  hooks:install(connection_accepted, HooksWeight, fun ?MODULE:connection_accepted/4),
-  hooks:install(connection_closed, HooksWeight, fun ?MODULE:connection_closed/3),
-  hooks:install(terminal_uin, HooksWeight, fun ?MODULE:terminal_uin/4),
-  hooks:install(terminal_raw_data, HooksWeight, fun ?MODULE:terminal_raw_data/5),
-  hooks:install(terminal_answer, HooksWeight, fun ?MODULE:terminal_answer/5),
-  hooks:install(terminal_packet, HooksWeight, fun ?MODULE:terminal_packet/7),
-  hooks:install(get, HooksWeight, fun ?MODULE:get/5),
-  hooks:install({?MODULE, get}, HooksWeight, fun ?MODULE:get/5),
-  hooks:install({?MODULE, set}, HooksWeight, fun ?MODULE:set/5),
+  hooks:install(connection_accepted, HooksWeight, {?MODULE, connection_accepted}),
+  hooks:install(connection_closed, HooksWeight, {?MODULE, connection_closed}),
+  hooks:install(terminal_uin, HooksWeight, {?MODULE, terminal_uin}),
+  hooks:install(terminal_info, HooksWeight, {?MODULE, terminal_info}),
+  hooks:install(terminal_raw_data, HooksWeight, {?MODULE, terminal_raw_data}),
+  hooks:install(terminal_answer, HooksWeight, {?MODULE, terminal_answer}),
+  hooks:install(terminal_packet, HooksWeight, {?MODULE, terminal_packet}),
+  hooks:install(get, HooksWeight, {?MODULE, get}),
+  hooks:install({?MODULE, get}, HooksWeight, {?MODULE, get}),
+  hooks:install({?MODULE, set}, HooksWeight, {?MODULE, set}),
   Args = get_opts(Opts),
   debug("connection options: ~w", [Args]),
   {
@@ -331,17 +345,17 @@ now2id() ->
 
 json_enc(L) ->
   L1 = pre_json(L),
-  jsx:encode(L1).
+  case catch jsxn:encode(L1) of
+    {'EXIT', {badarg, _}} -> warning("can't transform to json: ~w", [L1]), <<"{}">>;
+    {'EXIT', Reason} -> warning("jsx failed transform ~w: ~w", [L1, Reason]), <<"{}">>;
+    E -> E
+  end.
 
-pre_json(V) -> pre_json(V, []).
-pre_json([{LL, {G, M}} | T], V) when LL =:= latitude; LL =:= longitude ->
-  pre_json(T, [{LL, G + M/60} | V]);
-pre_json([{TName, {{Y, M, D}, {HH, MM, SS}}} | T], V)
-  when TName =:= eventtime; TName =:= terminal_eventtime ->
-  pre_json(T, [{TName,
-                iolist_to_binary(io_lib:format("~w-~w-~w ~w:~w:~w", [Y, M, D, HH, MM, SS]))}
-               | V]);
-pre_json([{Name, List = [{_, _} | _]} | T], V) ->
-  pre_json(T, [{Name, pre_json(List)} | V]);
-pre_json([I | T], V) -> pre_json(T, [I | V]);
-pre_json([], V) -> lists:reverse(V).
+pre_json(Map) ->
+  maps:map(
+    fun(_, V) when is_map(V) -> pre_json(V);
+       (LL, {G, M}) when LL =:= latitude; LL =:= longitude ->
+        G + M/60;
+       (_, V) -> V
+    end,
+    Map).
