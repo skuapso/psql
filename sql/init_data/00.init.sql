@@ -126,3 +126,5 @@ grant usage   on schema sim             to "$radius";
 grant usage   on schema sims            to "$radius";
 grant all     on sims.data              to "$radius";
 grant all     on sims.sessions          to "$radius";
+
+grant usage on schema ui to "$user";

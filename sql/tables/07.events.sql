@@ -14,6 +14,8 @@ create table events._data(
   ,valid boolean
     not null
     default true
+  ,location geography
+  ,data jsonb
   ,next timestamptz
     constraint zidx_data_fk_next references events._data(id) initially deferred
     constraint zidx_data_uk_next unique initially deferred
@@ -33,17 +35,6 @@ where not valid;
 alter table objects._data
   add last_event_id timestamptz
   constraint zidx_data_fk_last_event references events._data(id) on delete cascade;
-
-create table events._sensors(
-  id timestamptz
-    constraint zidx_sensors_fk references events._data(id)
-  ,sensor_id bigint
-    not null
-    constraint zidx_data_fk_sensor references objects._sensors(id)
-  ,value varchar
-    not null
-);
-create index zidx_sensors_ik_id on events._sensors(id);
 
 create trigger pre_i_00_check_object
   before insert

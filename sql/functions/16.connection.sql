@@ -21,3 +21,16 @@ begin
   select terminal_id into t from data.connections where id=$1;
   return t;
 end $$ language plpgsql stable;
+
+create function connection.set_terminal(
+  _id timestamptz,
+  _terminal_id bigint)
+returns setof timestamptz
+as $$
+begin
+  return query
+  update data.connections
+  set terminal_id=$2
+  where id=$1
+  returning id;
+end $$ language plpgsql;

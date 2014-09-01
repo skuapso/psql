@@ -32,19 +32,6 @@ begin
   return i;
 end $$ language plpgsql;
 
-create function connection.set_terminal(
-  _id timestamptz,
-  _terminal_id bigint)
-returns setof timestamptz
-as $$
-begin
-  return query
-  update data.connections
-  set terminal_id=$2
-  where id=$1
-  returning id;
-end $$ language plpgsql;
-
 create function data.add_broken(
   _id timestamptz,
   _data bytea,
@@ -127,3 +114,13 @@ begin
   from data d
   where r.id=$1 returning r.id;
 end $$ language plpgsql;
+
+create function data.merge(a1 jsonb, a2 jsonb) returns jsonb as $$
+  if (a1 == null) return a2;
+  if (a2 == null) return a1;
+  var o1 = JSON.parse(a1);
+  var o2 = JSON.parse(a2);
+  var i;
+  for (i in o2) o1[i] = o2[i];
+  return JSON.stringify(o1);
+$$ language plv8;
