@@ -97,6 +97,8 @@ terminal_uin(_Pid, Terminal, Timeout) ->
   execute(10, function, {connection, set_terminal, [ConnectionId, TerminalId]}, Timeout),
   ok.
 
+terminal_info(_Pid, _Terminal, M, _Timeout) when map_size(M) =:= 0 ->
+  ok;
 terminal_info(_Pid, Terminal, Info, Timeout) ->
   debug("setting terminal ~w info ~w", [Terminal, Info]),
   TerminalId = get_terminal_id(Terminal, Timeout),
