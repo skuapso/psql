@@ -357,7 +357,7 @@ pre_json(Map) ->
   maps:map(
     fun(_, V) when is_map(V) -> pre_json(V);
        (LL, {G, M}) when LL =:= latitude; LL =:= longitude ->
-        G + M/60;
+        #{d => G, m => M};
        (_, V) -> V
     end,
     Map).
