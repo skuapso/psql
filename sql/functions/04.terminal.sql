@@ -95,7 +95,7 @@ create function terminal.command(_terminal_id bigint) returns table(
 as $$
 begin
   return query select C.id,C.command,C.type from terminals.commands C
-  where terminal_id=$1 and executed is null order by dbtime desc limit 1;
+  where terminal_id=$1 and executed is null order by dbtime limit 1;
 end $$ language plpgsql stable;
 
 create function terminal.command_executed(
@@ -105,7 +105,7 @@ returns bool
 language plpgsql
 as $$
 begin
-  update terminals.commands set executed=now() where id=$2;
+  update terminals.commands set executed=now() where id=$2 and terminal_id=$1;
   return found;
 end $$;
 

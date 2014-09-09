@@ -51,6 +51,8 @@ create table terminals.commands(
 
   constraint zidx_commands_pk primary key(id)
 );
+create index "zidx_commands_ik_terminal_dbtime(executed==null)"
+on terminals.commands(terminal_id, dbtime) where (executed is null);
 
 create trigger insertb_00_set_id
   before insert
