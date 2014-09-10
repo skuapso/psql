@@ -180,7 +180,7 @@ begin
         *,
         navigation.part(condition) over (order by time) from (
           select
-            array_to_json(array[location,location]) as loc_json,
+            array_to_json(array[navigation.y(location),navigation.x(location)]) as loc_json,
             time,
             object_id,
             true as condition
