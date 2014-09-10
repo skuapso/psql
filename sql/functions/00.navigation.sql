@@ -127,7 +127,7 @@ create function navigation.get(location jsonb, param varchar) returns float as $
   if (o == null) return null;
   if (typeof o != 'object') return null;
   if (typeof o[param] == 'object') {
-    var s = (o[param]>=0) ? 1 : -1;
+    var s = (o[param]['d']>=0) ? 1 : -1;
     return (o[param]['d'] + s * o[param]['m']/60);
   }
   return o[param];
