@@ -63,8 +63,8 @@ begin
   select
     new.id,
     new.type,
-    terminal.object(packet.terminal(new.id)),
-    packet.terminal(new.id),
+    packet.object(new.raw_id, true),
+    packet.terminal(new.raw_id, true),
     new.eventtime,
     (new.data->'location')::geography;
   return new;

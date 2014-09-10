@@ -130,7 +130,7 @@ create trigger "=>insert set event"
   after insert
   on data.packets
   for each row
-  when (terminal.object(packet.terminal(new.raw_id, true)) is not null)
+  when (packet.object(new.raw_id, true) is not null)
   execute procedure event.prepare();
 
 --------------------------------------------------------------------------------
