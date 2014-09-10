@@ -1,3 +1,4 @@
+raise warning 'navigation.coords_gm needed for m2m replication'
 create type navigation.coords_gm as(
   degrees smallint,
   minutes float8
@@ -100,3 +101,37 @@ create aggregate navigation.part(bool)(
   ,finalfunc = navigation.part_fin
   ,initcond = '(false,0)'
 );
+
+create function navigation.to_geography(_location jsonb) returns geography as $$
+declare
+  alt float := navigation.get($1, 'altitude');
+begin
+  if alt is null then
+    alt = 0;
+  end if;
+  return (
+    'POINTZ('
+      || navigation.get($1, 'longitude')
+      || ' '
+      || navigation.get($1, 'latitude')
+      || ' '
+      || alt
+      || ')'
+  )::geography;
+end $$ language plpgsql immutable strict;
+
+create function navigation.get(location jsonb, param varchar) returns float as $$
+  var o = JSON.parse(location);
+  var r = 0;
+  var s = 1
+  if (o == null) return null;
+  if (typeof o != 'object') return null;
+  if (typeof o[param] == 'object') {
+    var s = (o[param]>=0) ? 1 : -1;
+    return (o[param]['d'] + s * o[param]['m']/60);
+  }
+  return o[param];
+$$ language plv8 immutable strict;
+
+create cast (jsonb as geography) with function navigation.to_geography(jsonb);
+create cast (geography as geometry) without function;

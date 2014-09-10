@@ -115,12 +115,15 @@ begin
   where r.id=$1 returning r.id;
 end $$ language plpgsql;
 
-create function data.merge(a1 jsonb, a2 jsonb) returns jsonb as $$
-  if (a1 == null) return a2;
-  if (a2 == null) return a1;
+create function data.merge(
+  a1 jsonb,
+  a2 jsonb
+) returns jsonb
+as $$
   var o1 = JSON.parse(a1);
+  if (o1 == null) return null;
   var o2 = JSON.parse(a2);
   var i;
   for (i in o2) o1[i] = o2[i];
   return JSON.stringify(o1);
-$$ language plv8;
+$$ language plv8 strict;

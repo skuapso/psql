@@ -48,3 +48,24 @@ begin
   new.valid = false;
   return new;
 end $$ language plpgsql;
+
+create function event.prepare()
+returns trigger
+as $$
+begin
+  insert into events._data (
+    id,
+    type,
+    object_id,
+    terminal_id,
+    time,
+    location)
+  select
+    new.id,
+    new.type,
+    terminal.object(packet.terminal(new.id)),
+    packet.terminal(new.id),
+    new.eventtime,
+    (new.data->'location')::geography;
+  return new;
+end $$ language plpgsql;
