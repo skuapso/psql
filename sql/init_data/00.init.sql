@@ -60,7 +60,6 @@ grant select on _users.data       to "$user";
 grant select on _users.groups     to "$user";
 grant select on _users.all        to "$user";
 grant select on events.data             to "$user";
-grant select on events.sensors          to "$user";
 grant select on objects.data            to "$user";
 grant select on objects.groups          to "$user";
 grant select on objects.types           to "$user";
