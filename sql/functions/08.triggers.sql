@@ -26,7 +26,6 @@ end $$ language plpgsql;
 create or replace function triggers.notify (ch text, pay text)
                     returns void as $$
 begin
-  raise debug '% %', ch, pay;
   perform pg_notify (ch, pay);
   return;
 end $$ language plpgsql;
@@ -93,6 +92,6 @@ end $$ language plpgsql;
 --------------------------------------------------------------------------------
 create function triggers.print_new() returns trigger as $$
 begin
-  raise debug 'new is %', new;
+  raise warning 'new is %', new;
   return new;
 end $$ language plpgsql;
