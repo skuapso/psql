@@ -1,4 +1,4 @@
-raise warning 'navigation.coords_gm needed for m2m replication'
+raise warning 'navigation.coords_gm needed for m2m replication';
 create type navigation.coords_gm as(
   degrees smallint,
   minutes float8
