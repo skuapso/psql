@@ -66,6 +66,10 @@ begin
     packet.object(new.raw_id, true),
     packet.terminal(new.raw_id, true),
     new.eventtime,
-    (new.data->'location')::geography;
+    case when ((new.data->'used')::varchar)::int > 3 then
+     (new.data->'location')::geography
+    else
+      null
+    end;
   return new;
 end $$ language plpgsql;
