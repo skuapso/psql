@@ -49,7 +49,7 @@ begin
   return new;
 end $$ language plpgsql;
 
-create function event.prepare()
+create function event.upload()
 returns trigger
 as $$
 begin
@@ -59,17 +59,50 @@ begin
     object_id,
     terminal_id,
     time,
-    location)
+    data)
   select
     new.id,
     new.type,
     packet.object(new.raw_id, true),
     packet.terminal(new.raw_id, true),
     new.eventtime,
-    case when ((new.data->'used')::varchar)::int > 3 then
-     (new.data->'location')::geography
-    else
-      null
-    end;
+    event.prepare_data(new.data);
   return new;
 end $$ language plpgsql;
+
+create function event.merge_data()
+returns trigger
+as $$
+declare
+  _old jsonb = event.data(new.prev);
+  _new jsonb = event.data(new.next);
+begin
+  new.data = jsonb.extend(_old, new.data, array['used']::varchar[]);
+  update events._data
+  set data=jsonb.extend(new.data, _new, array['used']::varchar[])
+  where id=new.next;
+  return new;
+end $$ language plpgsql;
+
+create function event.data(_id timestamptz) returns setof jsonb as $$
+begin
+  return query
+  select data
+  from events._data
+  where id=$1;
+end $$ language plpgsql stable strict;
+
+create function event.prepare_data(data jsonb) returns jsonb as $$
+  data = JSON.parse(data);
+  var loc;
+  if (data.used < 4) {
+    data = plv8.extend({}, data, ['location']);
+  } else {
+    loc = data.location;
+    if (loc) {
+      loc.latitude = plv8.ll_convert(loc, 'latitude');
+      loc.longitude = plv8.ll_convert(loc, 'longitude');
+    }
+  }
+  return JSON.stringify(data);
+$$ language plv8 stable strict;

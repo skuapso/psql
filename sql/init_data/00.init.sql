@@ -56,6 +56,7 @@ grant usage on schema sensor      to "$user";
 grant usage on schema sensors     to "$user";
 grant usage on schema terminals   to "$user";
 grant usage on schema uac         to "$user";
+grant usage on schema jsonb       to "$user";
 grant select on _users.data       to "$user";
 grant select on _users.groups     to "$user";
 grant select on _users.all        to "$user";

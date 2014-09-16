@@ -163,8 +163,7 @@ end $$ language plpgsql;
 create function object.track(
   _object_id bigint,
   _from timestamptz,
-  _to timestamptz,
-  _conds jsonb
+  _to timestamptz
 ) returns setof jsonb
 as $$
 begin
@@ -177,23 +176,14 @@ begin
       max(time)
     from (
       select
-        *,
-        navigation.part(condition) over (order by time) from (
-          select
-            array_to_json(array[navigation.y(location),navigation.x(location)]) as loc_json,
-            time,
-            object_id,
-            true as condition
---            " ++ ValCondition ++ " as condition
-           from events.data as ev
---          ++ Join ++
-           where valid and location is not null
-           and object_id=$1 and time>=$2 and time<=$3
---          ++ AddCondition ++
-           order by time
-        ) S3
-      ) S2
-    group by part,condition,object_id
-    having condition and count(*)>1
+        jsonb.extend(data, json_build_object('eventtime', time, 'object_id', object_id)) loc_json,
+        time,
+        object_id
+       from events.data as ev
+       where valid
+       and object_id=$1 and time>=$2 and time<=$3
+       order by time
+    ) S3
+    group by object_id
   ) S1;
 end $$ language plpgsql stable;

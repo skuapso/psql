@@ -131,8 +131,7 @@ create trigger "=>insert set event"
   on data.packets
   for each row
   when (packet.object(new.raw_id, true) is not null)
-  execute procedure event.prepare();
-
+  execute procedure event.upload();
 --------------------------------------------------------------------------------
 -- /data.packets
 --------------------------------------------------------------------------------

@@ -14,7 +14,6 @@ create table events._data(
   ,valid boolean
     not null
     default true
-  ,location geography
   ,data jsonb
   ,next timestamptz
     constraint zidx_data_fk_next references events._data(id) initially deferred
@@ -56,7 +55,7 @@ create trigger pre_i_05_check_presence
   on events._data
   for each row
   when (new.valid and checking.is_value_presents(
-    'events'::varchar, 'data'::varchar,
+    'events'::varchar, '_data'::varchar,
     array['time', 'object_id', 'valid']::varchar[],
     array[E'\'' || new.time || E'\'', new.object_id, true]::varchar[]
   ))
@@ -68,6 +67,13 @@ create trigger pre_i_20_set_neighbours
   for each row
   when (new.valid)
   execute procedure event.set_neighbours();
+
+create trigger pre_i_99_merge_data
+  before insert
+  on events._data
+  for each row
+  when (new.valid)
+  execute procedure event.merge_data();
 
 create trigger post_i_40_update_object
   after insert

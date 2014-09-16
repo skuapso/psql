@@ -122,16 +122,28 @@ end $$ language plpgsql immutable strict;
 
 create function navigation.get(location jsonb, param varchar) returns float as $$
   var o = JSON.parse(location);
-  var r = 0;
-  var s = 1
-  if (o == null) return null;
-  if (typeof o != 'object') return null;
-  if (typeof o[param] == 'object') {
-    var s = (o[param]['d']>=0) ? 1 : -1;
-    return (o[param]['d'] + s * o[param]['m']/60);
-  }
-  return o[param];
+  return plv8.ll_convert(o, param);
 $$ language plv8 immutable strict;
 
+create function navigation.get(location json, param varchar) returns float as $$
+  select navigation.get($1::jsonb, $2);
+$$ language sql immutable strict;
+
+create function navigation.to_jsonb(_location geography) returns jsonb as $$
+begin
+  return
+    case
+      when navigation.x($1) then
+        null
+    else
+      json_build_object(
+        'longitude', navigation.x($1),
+        'latitude', navigation.y($1),
+        'altitude', navigation.z($1)
+      )
+    end;
+end $$ language plpgsql immutable;
+
 create cast (jsonb as geography) with function navigation.to_geography(jsonb);
+create cast (geography as jsonb) with function navigation.to_jsonb(geography);
 create cast (geography as geometry) without function;
