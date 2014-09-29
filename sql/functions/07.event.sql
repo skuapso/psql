@@ -73,14 +73,15 @@ end $$ language plpgsql;
 create function event.merge_data()
 returns trigger
 as $$
-declare
-  _old jsonb = event.data(new.prev);
-  _new jsonb = event.data(new.next);
 begin
-  new.data = jsonb.extend(_old, new.data, array['used']::varchar[]);
-  update events._data
-  set data=jsonb.extend(new.data, _new, array['used']::varchar[])
-  where id=new.next;
+  if new.prev is not null then
+    new.data = jsonb.extend(event.data(new.prev), new.data, array['used']::varchar[]);
+  end if;
+  if new.next is not null then
+    update events._data
+    set data=jsonb.extend(new.data, event.data(new.next), array['used']::varchar[])
+    where id=new.next;
+  end if;
   return new;
 end $$ language plpgsql;
 

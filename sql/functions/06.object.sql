@@ -170,13 +170,13 @@ begin
   return query
   select row_to_json(S1.*)::jsonb as jsons from (
     select
-      array_to_json(array_agg(loc_json order by time)) as track,
+      array_to_json(array_agg(loc_json)) as track,
       object_id,
       min(time),
       max(time)
     from (
       select
-        jsonb.extend(data, json_build_object('eventtime', time, 'object_id', object_id)) loc_json,
+        json_build_object('location', data->'location', 'eventtime', time) loc_json,
         time,
         object_id
        from events.data as ev

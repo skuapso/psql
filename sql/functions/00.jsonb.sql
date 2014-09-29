@@ -32,20 +32,17 @@ create function jsonb.plv8_init() returns bool as $$
 $$ language plv8;
 
 create function jsonb.extend(jsonb, jsonb, varchar[] default '{}') returns jsonb as $$
-  var a = JSON.parse($1);
-  var b = JSON.parse($2);
-
-  return JSON.stringify(plv8.extend(a, b));
-$$ language plv8 immutable;
+  select jsonb_extend($1, $2);
+$$ language sql immutable strict;
 
 create function jsonb.extend(anyelement, anyelement, varchar[] default '{}') returns jsonb as $$
-  select jsonb.extend($1::jsonb, $2::jsonb)
-$$ language sql immutable;
+  select jsonb.extend($1::jsonb, $2::jsonb, $3)
+$$ language sql immutable strict;
 
 create function jsonb.extend(jsonb, anyelement, varchar[] default '{}') returns jsonb as $$
-  select jsonb.extend($1, $2::jsonb)
-$$ language sql immutable;
+  select jsonb.extend($1, $2::jsonb, $3)
+$$ language sql immutable strict;
 
 create function jsonb.extend(anyelement, jsonb, varchar[] default '{}') returns jsonb as $$
-  select jsonb.extend($1::jsonb, $2)
-$$ language sql immutable;
+  select jsonb.extend($1::jsonb, $2, $3)
+$$ language sql immutable strict;
