@@ -24,11 +24,16 @@ as $$
 declare
   i timestamptz;
 begin
-  select data_id::timestamptz into i from data.binary where md5(data)=md5($2) limit 1;
-  if found then
-    return i;
-  end if;
-  insert into data.binary values ($1::bigint, $2) returning data_id::timestamptz into i;
+  loop
+    select data_id::timestamptz into i from data.binary where md5(data)=md5($2) limit 1;
+    if found then
+      return i;
+    end if;
+    begin
+      insert into data.binary values ($1::bigint, $2) returning data_id::timestamptz into i;
+    exception when unique_violation then
+    end;
+  end loop;
   return i;
 end $$ language plpgsql;
 

@@ -8,27 +8,6 @@ create table data.binary(
   data bytea not null
 );
 create unique index "binary(md5(data))" on data.binary(md5(data));
-
-create or replace function data.binary_id(
-  _id bigint,
-  _data bytea
-) returns timestamptz as $$
-  with
-  defined as (select data_id from data.binary where md5(data)=md5($2)),
-  count as (select count(*) from defined),
-  inserted as (insert into data.binary
-                select $1, $2
-                from count
-                where count.count=0
-                returning data_id)
-  select
-    case when count.count=0 then inserted.data_id::timestamptz
-    else defined.data_id::timestamptz
-    end as id
-  from defined
-  full join inserted on(true)
-  full join count on(true)
-$$ language sql;
 --------------------------------------------------------------------------------
 -- /data.binary
 --------------------------------------------------------------------------------
