@@ -24,11 +24,11 @@ as $$
 declare
   i timestamptz;
 begin
-  select data_id into i from data.binary where md5(data)=md5($2) limit 1;
+  select data_id::timestamptz into i from data.binary where md5(data)=md5($2) limit 1;
   if found then
     return i;
   end if;
-  insert into data.binary values ($1, $2) returning data_id into i;
+  insert into data.binary values ($1::bigint, $2) returning data_id::timestamptz into i;
   return i;
 end $$ language plpgsql;
 
@@ -41,7 +41,8 @@ as $$
 begin
   return query
   insert into data.broken
-  select $1, data.binary_id($1, $2), $3, false returning id;
+  select $1, data.binary_id($1, $2), $3, false
+  returning id::bigint;
 end $$ language plpgsql;
 
 create function data.add_raw(
@@ -64,7 +65,7 @@ begin
   select $1, id, $3
   from data
   where id=$1
-  returning id;
+  returning id::timestamptz;
 end $$ language plpgsql;
 
 create function data.add_packet(
@@ -82,7 +83,7 @@ begin
     raw as (
       select id
       from data.raws
-      where id=$3),
+      where id=$3::bigint),
     craw as (
       select count(*) from raw),
     data as (
@@ -95,7 +96,7 @@ begin
     inner join raw on(true)
     inner join craw on(true)
     where craw.count>0
-    returning id;
+    returning id::timestamptz;
 end $$ language plpgsql;
 
 create function data.set_answer(
@@ -112,7 +113,8 @@ begin
   update data.raws r
   set (answer_id, answered)=(d.id, $3)
   from data d
-  where r.id=$1 returning r.id;
+  where r.id=$1::bigint
+  returning r.id::timestamptz;
 end $$ language plpgsql;
 
 create function data.merge(

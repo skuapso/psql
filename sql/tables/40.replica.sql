@@ -101,12 +101,12 @@ create table replica.rules(
 );
 
 create table replica.data(
-  id timestamptz
+  id bigint
     default current_timestamp
     constraint "data(id)"
     primary key,
 
-  parent_id timestamptz
+  parent_id bigint
     not null
     constraint "data(parent)->data.packets"
     references data.packets(id)
@@ -127,13 +127,13 @@ create table replica.data(
     references terminals._data(id)
     on delete cascade,
 
-  data_id timestamptz
+  data_id bigint
     not null
     constraint "data->data.binary"
     references data."binary"(data_id)
     on delete cascade,
 
-  answer_id timestamptz
+  answer_id bigint
 );
 
 create index "data(id,server && answer is null"
@@ -151,17 +151,17 @@ create index "data(parent)"
   on replica.data(parent_id);
 
 create table replica.answers(
-  id timestamptz
+  id bigint
     default current_timestamp
     constraint "answers(id)" primary key,
 
-  connection_id timestamptz
+  connection_id bigint
     not null
     constraint "answers->connection"
     references data.connections(id)
     on delete cascade,
 
-  data_id timestamptz
+  data_id bigint
     not null
     constraint "data->data.binary"
     references data."binary"(data_id)
@@ -197,7 +197,7 @@ create table replica.issues(
     constraint "issues->servers" references replica.servers(id)
     on delete cascade,
 
-  connection_id timestamptz
+  connection_id bigint
     not null
     constraint "issues->connection" references data.connections(id)
     on delete cascade,

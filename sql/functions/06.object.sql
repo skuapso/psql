@@ -67,9 +67,9 @@ begin
   return g;
 end $$ language plpgsql stable;
 
-create function object.last_event_id(_object_id bigint) returns timestamptz as $$
+create function object.last_event_id(_object_id bigint) returns bigint as $$
 declare
-  e timestamptz;
+  e bigint;
 begin
   select last_event_id into e from objects.data where id=$1;
   return e;

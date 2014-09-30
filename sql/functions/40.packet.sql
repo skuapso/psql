@@ -1,5 +1,5 @@
 create function packet.terminal(
-  _id timestamptz,
+  _id bigint,
   _is_raw bool default false
 ) returns bigint
 as $$
@@ -10,19 +10,19 @@ begin
     select terminal_id into i
     from data.raws R
     inner join data.connections C on (R.connection_id = C.id)
-    where R.id=$1;
+    where R.id=$1::bigint;
   else
     select terminal_id into i
     from data.packets P
     inner join data.raws R on (P.raw_id=R.id)
     inner join data.connections C on (R.connection_id = C.id)
-    where P.id=$1;
+    where P.id=$1::bigint;
   end if;
   return i;
 end $$ language plpgsql stable strict;
 
 create function packet.object(
-  _id timestamptz,
+  _id bigint,
   _is_raw bool default false
 ) returns bigint
 as $$
@@ -34,14 +34,14 @@ begin
     from data.raws R
     inner join data.connections C on (R.connection_id = C.id)
     inner join objects._data O using (terminal_id)
-    where R.id=$1;
+    where R.id=$1::bigint;
   else
     select O.id into i
     from data.packets P
     inner join data.raws R on (P.raw_id=R.id)
     inner join data.connections C on (R.connection_id = C.id)
     inner join objects._data O using (terminal_id)
-    where P.id=$1;
+    where P.id=$1::bigint;
   end if;
   return i;
 end $$ language plpgsql stable strict;

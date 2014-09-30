@@ -31,6 +31,37 @@ begin
   return query
   update data.connections
   set terminal_id=$2
-  where id=$1
-  returning id;
+  where id=$1::bigint
+  returning id::timestamptz;
+end $$ language plpgsql;
+
+create function connection.open(
+  _id timestamptz,
+  _proto terminals.protocols,
+  _local_ip inet,
+  _local_port bigint,
+  _remote_ip inet,
+  _remort_port bigint
+) returns setof timestamptz as $$
+begin
+  return query
+  with data_id as (
+    insert into data.connections (id, protocol, type)
+    values ($1, $2, 'ip')
+    returning id
+  ) insert into connections.ip_data
+  select D.id, $3, $4, $5, $6
+  from data_id D returning id::timestamptz;
+end $$ language plpgsql;
+
+create function connection.close(
+  _id timestamptz)
+returns setof timestamptz
+as $$
+begin
+  return query
+  update data.connections
+  set closed=current_timestamp
+  where id=$1::bigint
+  returning id::timestamptz;
 end $$ language plpgsql;

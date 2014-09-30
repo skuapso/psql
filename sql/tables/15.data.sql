@@ -2,7 +2,7 @@
 -- data.binary
 --------------------------------------------------------------------------------
 create table data.binary(
-  data_id timestamptz
+  data_id bigint
     constraint "binary(data_id)" primary key
     default current_timestamp,
   data bytea not null
@@ -10,7 +10,7 @@ create table data.binary(
 create unique index "binary(md5(data))" on data.binary(md5(data));
 
 create or replace function data.binary_id(
-  _id timestamptz,
+  _id bigint,
   _data bytea
 ) returns timestamptz as $$
   with
@@ -22,8 +22,8 @@ create or replace function data.binary_id(
                 where count.count=0
                 returning data_id)
   select
-    case when count.count=0 then inserted.data_id
-    else defined.data_id
+    case when count.count=0 then inserted.data_id::timestamptz
+    else defined.data_id::timestamptz
     end as id
   from defined
   full join inserted on(true)
@@ -37,7 +37,7 @@ $$ language sql;
 -- data.connections
 --------------------------------------------------------------------------------
 create table data.connections(
-  id timestamptz
+  id bigint
     constraint "connections(id)" primary key
     default current_timestamp,
   protocol terminals.protocols not null,
@@ -57,13 +57,13 @@ comment on table data.connections is 'table for connections';
 -- data.broken
 --------------------------------------------------------------------------------
 create table data.broken(
-  id timestamptz
+  id bigint
     constraint "broken(data_id)" primary key,
-  data_id timestamptz
+  data_id bigint
     not null
     constraint "broken->binary"
     references data.binary(data_id) on delete cascade,
-  connection_id timestamptz
+  connection_id bigint
     not null
     constraint "broken->connection(id)"
     references data.connections(id) on delete cascade,
@@ -77,17 +77,17 @@ create table data.broken(
 -- data.raws
 --------------------------------------------------------------------------------
 create table data.raws(
-  id timestamptz
+  id bigint
     constraint "raws(id)" primary key,
-  data_id timestamptz
+  data_id bigint
     not null
     constraint "raws->binary"
     references data.binary(data_id) on delete cascade,
-  connection_id timestamptz
+  connection_id bigint
     not null
     constraint "raws->connection(id)"
     references data.connections(id) on delete cascade,
-  answer_id timestamptz
+  answer_id bigint
     constraint "raws(answer)->binary(data_id)"
     references data.binary(data_id) on delete set null,
   answered varchar
@@ -107,14 +107,14 @@ create table data.raws(
 -- data.packets
 --------------------------------------------------------------------------------
 create table data.packets(
-  id timestamptz
+  id bigint
     constraint "packets(id)" primary key
     default current_timestamp,
-  data_id timestamptz
+  data_id bigint
     not null
     constraint "packets->binary"
     references data.binary(data_id) on delete cascade,
-  raw_id timestamptz
+  raw_id bigint
     not null
     constraint "packets->raw(id)"
     references data.raws(id) on delete cascade,

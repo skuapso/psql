@@ -1,6 +1,6 @@
 create function event.set_neighbours() returns trigger as $$
 declare
-  e timestamptz;
+  e bigint;
 begin
   e = object.last_event_id(new.object_id);
   if e is null then
@@ -27,11 +27,11 @@ begin
   return new;
 end $$ language plpgsql;
 
-create function event.time(_event_id timestamptz) returns timestamptz as $$
+create function event.time(_event_id bigint) returns timestamptz as $$
 declare
   t timestamptz;
 begin
-  select time into t from events.data where id=$1;
+  select time into t from events.data where id=$1::bigint;
   return t;
 end $$ language plpgsql stable;
 
@@ -85,7 +85,7 @@ begin
   return new;
 end $$ language plpgsql;
 
-create function event.data(_id timestamptz) returns setof jsonb as $$
+create function event.data(_id bigint) returns setof jsonb as $$
 begin
   return query
   select data

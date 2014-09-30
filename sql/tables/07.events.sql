@@ -1,5 +1,5 @@
 create table events._data(
-  id timestamptz
+  id bigint
     default current_timestamp
     constraint zidx_data_pk primary key
   ,type data.types
@@ -15,9 +15,9 @@ create table events._data(
     not null
     default true
   ,data jsonb
-  ,next timestamptz
+  ,next bigint
     constraint zidx_data_fk_next references events._data(id) initially deferred
-  ,prev timestamptz
+  ,prev bigint
     constraint zidx_data_fk_prev references events._data(id) initially deferred
 );
 create unique index zidx_data_uk_next on events._data(next);
@@ -32,7 +32,7 @@ on events._data(object_id, time)
 where not valid;
 
 alter table objects._data
-  add last_event_id timestamptz
+  add last_event_id bigint
   constraint zidx_data_fk_last_event references events._data(id)
   on delete set null;
 
@@ -47,7 +47,7 @@ create trigger pre_i_04_check_time
   before insert
   on events._data
   for each row
-  when (new.time > new.id)
+  when (new.time > new.id::timestamptz)
   execute procedure event.set_not_valid();
 
 create trigger pre_i_05_check_presence

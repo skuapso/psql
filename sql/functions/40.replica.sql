@@ -248,7 +248,7 @@ create function replica.undelivered(
   _terminal_id bigint,
   _max_points bigint)
 returns table(
-  id timestamptz,
+  id bigint,
   data bytea,
   protocol terminals.protocols)
 as $$
@@ -283,14 +283,14 @@ as $$
 begin
   return query
   insert into replica.data
-  values ($1, $2, $3, $4, $6, data.binary_id($1, $5), null) returning id;
+  values ($1, $2, $3, $4, $6, data.binary_id($1, $5), null) returning id::timestamptz;
 end $$ language plpgsql;
 
 create function replica.set_answer(
   _id timestamptz,
   _answer bytea,
   _connection_id timestamptz,
-  _data_ids timestamptz[])
+  _data_ids bigint[])
 returns setof timestamptz
 as $$
 begin
@@ -310,5 +310,5 @@ begin
       where
         D.id in (select unnest($4))
       returning D.id)
-  select answer.id from answer;
+  select answer.id::timestamptz from answer;
 end $$ language plpgsql;

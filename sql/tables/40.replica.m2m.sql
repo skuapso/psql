@@ -1,5 +1,5 @@
 create table replica.m2m(
-  id timestamptz
+  id bigint
     default current_timestamp
     constraint "m2m(id)" primary key,
 
