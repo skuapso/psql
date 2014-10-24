@@ -100,9 +100,10 @@ create table replica.rules(
     = 1) and type='exclude'))
 );
 
+create sequence replica.seq_data;
 create table replica.data(
   id bigint
-    default current_timestamp
+    default nextval('replica.seq_data')
     constraint "data(id)"
     primary key,
 
@@ -150,9 +151,10 @@ create index "data(answer)"
 create index "data(parent)"
   on replica.data(parent_id);
 
+create sequence replica.seq_answers;
 create table replica.answers(
   id bigint
-    default current_timestamp
+    default nextval('replica.seq_answers')
     constraint "answers(id)" primary key,
 
   connection_id bigint

@@ -1,6 +1,7 @@
+create sequence events.seq__data;
 create table events._data(
   id bigint
-    default current_timestamp
+    default nextval('events.seq__data')
     constraint zidx_data_pk primary key
   ,type data.types
     not null

@@ -1,6 +1,7 @@
+create sequence replica.seq_m2m;
 create table replica.m2m(
   id bigint
-    default current_timestamp
+    default nextval('replica.seq_m2m')
     constraint "m2m(id)" primary key,
 
   type data.types

@@ -1,10 +1,11 @@
 --------------------------------------------------------------------------------
 -- data.binary
 --------------------------------------------------------------------------------
+create sequence data.seq_binary;
 create table data.binary(
   data_id bigint
     constraint "binary(data_id)" primary key
-    default current_timestamp,
+    default nextval('data.seq_binary'),
   data bytea not null
 );
 create unique index "binary(md5(data))" on data.binary(md5(data));
@@ -15,10 +16,11 @@ create unique index "binary(md5(data))" on data.binary(md5(data));
 --------------------------------------------------------------------------------
 -- data.connections
 --------------------------------------------------------------------------------
+create sequence data.seq_connections;
 create table data.connections(
   id bigint
     constraint "connections(id)" primary key
-    default current_timestamp,
+    default nextval('data.seq_connections'),
   protocol terminals.protocols not null,
   closed timestamptz default null,
   type connections.types not null,
@@ -78,10 +80,11 @@ create table data.raws(
 --------------------------------------------------------------------------------
 -- data.packets
 --------------------------------------------------------------------------------
+create sequence data.seq_packets;
 create table data.packets(
   id bigint
     constraint "packets(id)" primary key
-    default current_timestamp,
+    default nextval('data.seq_packets'),
   data_id bigint
     not null
     constraint "packets->binary"
