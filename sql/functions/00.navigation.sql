@@ -60,6 +60,11 @@ begin
   return st_distance($1, $2);
 end $$ language plpgsql immutable;
 
+create function navigation.distance(jsonb, jsonb) returns float as $$
+begin
+  return navigation.distance($1::geography, $2::geography);
+end $$ language plpgsql immutable;
+
 create function navigation.x(geography) returns float8 as $$
 begin
   return st_x($1::geometry);
@@ -144,6 +149,7 @@ begin
     end;
 end $$ language plpgsql immutable;
 
-create cast (jsonb as geography) with function navigation.to_geography(jsonb);
+drop cast if exists (jsonb as geography);
+drop cast if exists (geography as jsonb);
+create cast (jsonb as geography) with function navigation.to_geography(jsonb) as implicit;
 create cast (geography as jsonb) with function navigation.to_jsonb(geography);
-create cast (geography as geometry) without function;

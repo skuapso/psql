@@ -162,16 +162,16 @@ end $$ language plpgsql;
 
 create function object.track(
   _object_id bigint,
-  _from timestamptz,
-  _to timestamptz
+  _from timestamp,
+  _to timestamp
 ) returns setof jsonb
 as $$
 begin
   return query
-  select row_to_json(S1.*)::jsonb as jsons from (
+  select row_to_json(S.*)::jsonb as jsons from (
     select
       array_to_json(array_agg(loc_json)) as track,
-      object_id,
+      $1 as object_id,
       min(time),
       max(time)
     from (
@@ -183,7 +183,65 @@ begin
        where valid
        and object_id=$1 and time>=$2 and time<=$3
        order by time
-    ) S3
-    group by object_id
-  ) S1;
+    ) S1
+  ) S;
+end $$ language plpgsql stable;
+
+create function object.summory(
+  _object_id bigint,
+  _from timestamp,
+  _to timestamp
+) returns setof jsonb
+as $$
+begin
+  return query
+  execute E'select row_to_json(S.*)::jsonb as jsons from (
+    select
+      $1 as object_id,
+      milage,
+      runtime,
+      justify_interval($3 - $2 - runtime) as parktime,
+      case when runtime = interval \'0\' then
+        0
+      else
+        round((milage*60*60/extract(epoch from runtime))::numeric, 3)
+      end as avg_speed
+    from (
+      select
+      case when milage is null then
+        0
+      else
+        milage
+      end as milage,
+      case when runtime is null then
+        interval \'0\'
+      else
+        runtime
+      end as runtime
+      from (
+        select
+          round((sum(distance)/1000)::numeric, 3) as milage,
+          justify_interval(sum(runtime)) as runtime
+        from (
+          select
+            navigation.distance(C.data->\'location\', P.data->\'location\') as distance,
+            case when (c.data->\'speed\')::text::float>3 or (p.data->\'speed\')::text::float>3 then
+              c.time-p.time
+            else
+              interval \'0\'
+            end as runtime,
+            c.data->\'speed\' as speed
+          from
+            events.data C
+          inner join
+            events.data P
+          on (C.prev = P.id)
+          where C.valid
+            and C.object_id=$1
+            and C.time between $2 and $3
+            and P.time between $2 and $3
+        ) S3
+      ) S2
+    ) S1
+  ) S' using $1, $2, $3;
 end $$ language plpgsql stable;
