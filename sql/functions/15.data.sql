@@ -127,10 +127,5 @@ create function data.merge(
   a2 jsonb
 ) returns jsonb
 as $$
-  var o1 = JSON.parse(a1);
-  if (o1 == null) return null;
-  var o2 = JSON.parse(a2);
-  var i;
-  for (i in o2) o1[i] = o2[i];
-  return JSON.stringify(o1);
-$$ language plv8 strict;
+  return plv8.extend(a1, a2);
+$$ language plv8;
