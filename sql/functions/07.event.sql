@@ -107,3 +107,28 @@ create function event.prepare_data(data jsonb) returns jsonb as $$
   }
   return JSON.stringify(data);
 $$ language plv8 stable strict;
+
+create function event.delete(_id bigint)
+returns bool
+as $$
+declare
+  p bigint;
+  n bigint;
+begin
+  select prev,next into p,n from events.data where id=$1;
+
+  update events.data set valid=false, prev=null, next=null where id=$1;
+  update events.data set next=n where id=p;
+  update events.data set prev=p where id=n;
+  return true;
+end $$ language plpgsql;
+
+create function event.delete(_object_id bigint, _time timestamp)
+returns bool
+as $$
+declare
+  i bigint;
+begin
+  select id into i from events.data where object_id=$1 and time=$2 and valid;
+  return event.delete(i);
+end $$ language plpgsql;
