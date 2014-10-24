@@ -65,9 +65,15 @@ do instead
   returning *,'group'::varchar;
 
 create view objects.data as
-  select O.*,'object'::varchar as type from objects.groups G
-  inner join objects._data O on(G.id=O.group_id)
+  select
+    O.*,
+    'object'::varchar as type,
+    jsonb.extend(E.data, json_build_object('eventtime', time)) as data
+  from objects.groups G
+  inner join objects._data O on (G.id=O.group_id)
+  left join events._data E on (O.last_event_id = E.id)
   where not O.deleted;
+
 create rule "update" as on update to objects.data
 do instead
   update objects._data
@@ -82,20 +88,20 @@ do instead
     and id in (select id from objects.data where id=new.id)
     and uac.can_read_group(new.group_id)
     and uac.can_read_group(old.group_id)
-  returning *,'object'::varchar;
+  returning *,'object'::varchar, null::jsonb;
 create rule "delete" as on delete to objects.data
 do instead
   update objects._data set deleted=true
   where id = old.id
   and id in (select id from objects.data where id=old.id)
-  returning *,'object'::varchar;
+  returning *,'object'::varchar, null::jsonb;
 create rule "create" as on insert to objects.data
 do instead
   insert into objects._data (no, model_id, specialization_id, group_id, terminal_id)
   select new.no, new.model_id, new.specialization_id, new.group_id, new.terminal_id
   from objects.groups
   where id=new.group_id
-  returning *,'object'::varchar;
+  returning *,'object'::varchar, null::jsonb;
 
 create view terminals.data as
   select T.*,'terminal'::varchar as type from objects.data O
