@@ -66,13 +66,13 @@ uninstall:
 	@echo "*** dropping schemas"
 	@for i in $(FUNCTIONS); do \
 		echo "\t*** dropping schema $$i"; \
-		echo "drop schema \"`echo \"$$i\" | sed 's/^functions\/[0-9][0-9]\.//' | sed 's/\.sql$$//'`\" cascade" | $(PSQL); \
+		echo "set client_min_messages to 'warning'; drop schema \"`echo \"$$i\" | sed 's/^functions\/[0-9][0-9]\.//' | sed 's/\.sql$$//'`\" cascade" | $(PSQL); \
 	done
 
 reinstall: uninstall install
 
 db:
-	$(PSQL)
+	@$(PSQL)
 
 backup:
 	$(PGDUMPC) > backup.sql
