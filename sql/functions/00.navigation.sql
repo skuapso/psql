@@ -1,4 +1,4 @@
-raise warning 'navigation.coords_gm needed for m2m replication';
+do $$begin raise warning 'navigation.coords_gm needed for m2m replication'; end$$;
 create type navigation.coords_gm as(
   degrees smallint,
   minutes float8
@@ -109,16 +109,16 @@ create aggregate navigation.part(bool)(
 
 create function navigation.to_geography(_location jsonb) returns geography as $$
 declare
-  alt float := navigation.get($1, 'altitude');
+  alt text := $1->'altitude';
 begin
   if alt is null then
-    alt = 0;
+    alt = '0';
   end if;
   return (
     'POINTZ('
-      || navigation.get($1, 'longitude')
+      || ($1->'longitude')
       || ' '
-      || navigation.get($1, 'latitude')
+      || ($1->'latitude')
       || ' '
       || alt
       || ')'

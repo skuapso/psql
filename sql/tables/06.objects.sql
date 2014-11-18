@@ -14,26 +14,13 @@ create trigger insertb_00_set_id
   when (new.id is null)
   execute procedure triggers.set_id();
 
-create sequence objects.seq_types;
-create table objects.types(
-  id bigint
-    constraint zidx_types_pk primary key
-    default nextval('objects.seq_types'),
-  title varchar
-    not null
-    constraint zidx_types_uk_title unique
-);
-
 create sequence objects.seq_models;
 create table objects.models(
   id bigint
     constraint zidx_models_pk primary key,
   title varchar
     not null
-    constraint zidx_models_uk_title unique,
-  type_id bigint
-    constraint zidx_models_fk_type references objects.types(id) on delete set null
-    default 1
+    constraint zidx_models_uk_title unique
 );
 
 create trigger insertb_00_set_id
@@ -114,23 +101,41 @@ create table objects._data(
     default false
 );
 
-create sequence objects.seq__sensors;
+create sequence objects.seq_tools;
+create table objects.tools(
+  id bigint
+    constraint zidx_purposes_pk primary key
+    default nextval('objects.seq_tools')
+  ,title varchar
+    not null
+  ,type_id bigint
+    not null
+    constraint zidx_purposes_fk_type references sensors.types(id)
+);
+
 create table objects._sensors(
   id bigint
     constraint zidx_sensors_pk primary key
-    default nextval('objects.seq__sensors')
+    default -nextval('sensors.seq_ids')
   ,object_id bigint
     not null
     constraint zidx_sensors_fk_object references objects._data(id)
   ,sensor_id bigint
     not null
-    constraint zidx_sensors_fk_sensor references sensors._data(id)
-  ,port_id varchar
+  ,port_id jsonb
+  ,provides bigint
+    constraint zidx_sensors_fk_purpose references objects.tools(id)
 
-  ,constraint zidx_sensors_uk_object_sensor_port unique(object_id, sensor_id, port_id)
+  ,constraint zidx_sensors_ck_type
+    check(port_id is null or (port_id<@any(terminal.ports(object.terminal(object_id), false))))
+  ,constraint zidx_sensors_fk_sensor
+    check(checking.is_value_presents('sensors', 'data', 'id', sensor_id))
 );
+create unique index zidx_sensors_uk_object_sensor_port
+on objects._sensors(object_id, port_id)
+where (port_id is not null);
 create unique index zidx_sensors_uk_sensor_not_virtual
-on objects._sensors(id) where (not sensor.virtual(sensor_id));
+on objects._sensors(id) where (sensor_id>0);
 
 create trigger insertb_50_set_id
   before insert
@@ -166,3 +171,9 @@ create trigger inserta_00_notify_delete
   for each row
   when (not old.deleted and new.deleted)
   execute procedure object.notify_delete();
+
+alter table terminals.ports
+add column provides bigint
+  constraint zidx_ports_fk_provides references objects.tools(id)
+  on delete restrict
+  on update restrict;

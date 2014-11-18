@@ -129,3 +129,24 @@ create function data.merge(
 as $$
   return plv8.extend(a1, a2);
 $$ language plv8;
+
+create function data.compute(
+  object_id bigint,
+  sensor_id bigint,
+  value jsonb
+) returns jsonb
+as $$
+declare
+  val jsonb;
+  fun varchar;
+begin
+  fun = sensor.compute_fun($2);
+  if fun is null then
+    return $3;
+  end if;
+  if $3 is null then
+    return null;
+  end if;
+  execute 'select ' || fun || '($1, $2, $3)' using $1, $2, $3 into val;
+  return val;
+end $$ language plpgsql stable strict;

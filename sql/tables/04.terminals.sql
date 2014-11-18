@@ -1,8 +1,11 @@
 create sequence terminals.seq_models;
 create table terminals.models(
-  id bigint,
-  title varchar,
-  protocols terminals.protocols[],
+  id bigint
+    default nextval('terminals.seq_models'),
+  title varchar
+    not null,
+  protocols terminals.protocols[]
+    not null,
 
   constraint zidx_models_pk primary key(id),
   constraint zidx_models_uk_title unique(title)
@@ -14,6 +17,19 @@ create trigger insertb_00_set_id
   for each row
   when (new.id is null)
   execute procedure triggers.set_id();
+
+create sequence terminals.seq_ports;
+create table terminals.ports(
+  id bigint
+    default nextval('terminals.seq_ports')
+    constraint zidx_ports_pk primary key,
+  model_id bigint
+    not null,
+  ports jsonb
+    not null,
+
+  constraint zidx_ports_uk_model_port unique(model_id, ports)
+);
 
 create sequence terminals.seq__data;
 create table terminals._data(

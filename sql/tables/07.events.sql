@@ -69,7 +69,13 @@ create trigger pre_i_20_set_neighbours
   when (new.valid)
   execute procedure event.set_neighbours();
 
-create trigger pre_i_99_merge_data
+create trigger pre_i_03_set_data
+  before insert
+  on events._data
+  for each row
+  execute procedure event.prepare_data();
+
+create trigger pre_i_30_merge_data
   before insert
   on events._data
   for each row

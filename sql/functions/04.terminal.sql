@@ -8,8 +8,8 @@ create type terminals.command_send_type as enum(
 create type terminal.port_types as enum(
   'digital'
   ,'analog'
-  ,'counter'
   ,'location'
+  ,'speed'
 );
 
 create function terminal.add(
@@ -138,3 +138,32 @@ begin
   where id=$1
   returning info;
 end $$ language plpgsql;
+
+create function terminal.ports(
+  _terminal_id bigint,
+  _common bool default null
+) returns jsonb[]
+as $$
+declare
+  p jsonb[];
+begin
+  select
+    array_agg(ports)
+  into
+    p
+  from
+    terminals.data T
+  inner join
+    terminals.models M
+    on (T.model_id = M.id)
+  inner join
+    terminals.ports P
+    on (M.id = P.model_id)
+  where
+    T.id = $1
+    and (
+      $2 is null
+      or (provides is not null)=$2
+    );
+  return p;
+end $$ language plpgsql stable;

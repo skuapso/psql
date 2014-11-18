@@ -1,15 +1,14 @@
 set plv8.start_proc = '';
 create function jsonb.plv8_init() returns bool as $$
-  plv8.ll_convert = function(loc, p) {
-    var r;
-    if (loc == null) return null;
-    if (typeof loc != 'object') return null;
-    r = loc[p];
-    if (typeof loc[p] == 'object') {
-      var s = (loc[p]['d'] >= 0) ? 1 : -1;
-      r = loc[p]['d'] + s * loc[p]['m']/60;
+  plv8.ll_convert = function(ll) {
+    var s;
+    if (ll == null) return null;
+    if (typeof ll == 'object') {
+      var s = (ll['d'] >= 0) ? 1 : -1;
+      return ll['d'] + s * ll['m']/60;
+    } else {
+      return ll;
     }
-    return r;
   };
   plv8.extend = function(a, b, e) {
     var i;
@@ -31,7 +30,7 @@ create function jsonb.plv8_init() returns bool as $$
   };
 $$ language plv8;
 
-create function jsonb.extend(jsonb, jsonb, varchar[] default '{}') returns jsonb as $$
+create function jsonb.extend(jsonb, jsonb, varchar[]) returns jsonb as $$
   select jsonb_extend($1, $2);
 $$ language sql immutable strict;
 
@@ -46,3 +45,21 @@ $$ language sql immutable strict;
 create function jsonb.extend(anyelement, jsonb, varchar[] default '{}') returns jsonb as $$
   select jsonb.extend($1::jsonb, $2, $3)
 $$ language sql immutable strict;
+
+create function jsonb.extend(jsonb, jsonb) returns jsonb as $$
+  select jsonb.extend($1, $2, '{}'::varchar[]);
+$$ language sql immutable strict;
+
+create function jsonb.path(_path jsonb, text[] default '{}') returns text[] as $$
+declare
+  k text;
+  v jsonb;
+begin
+  k = jsonb_typeof($1);
+  if k = 'object' then
+    select key,value into k,v from jsonb_each($1) limit 1;
+    return jsonb.path(v, $2 || k);
+  else
+    return $2 || ($1->>0);
+  end if;
+end $$ language plpgsql immutable strict;

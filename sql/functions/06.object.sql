@@ -160,7 +160,7 @@ begin
   return new;
 end $$ language plpgsql;
 
-create function object.track(
+create function object.data(
   _object_id bigint,
   _from timestamp,
   _to timestamp
@@ -170,19 +170,24 @@ begin
   return query
   select row_to_json(S.*)::jsonb as jsons from (
     select
-      array_to_json(array_agg(loc_json)) as track,
+      array_to_json(array_agg(loc_json)) as data,
       $1 as object_id,
       min(time),
       max(time)
     from (
       select
-        json_build_object('location', data->'location', 'eventtime', time) loc_json,
-        time,
-        object_id
-       from events.data as ev
-       where valid
-       and object_id=$1 and time>=$2 and time<=$3
-       order by time
+        jsonb.extend(data, json_build_object('eventtime', time)) loc_json,
+        time
+       from (
+        select
+          sensors.merge(data) over (order by time) as data,
+          time
+        from
+          events.data as ev
+         where valid
+         and object_id=$1 and time>=$2 and time<=$3
+         order by time
+      ) S2
     ) S1
   ) S;
 end $$ language plpgsql stable;
@@ -195,16 +200,17 @@ create function object.summory(
 as $$
 begin
   return query
-  execute E'select row_to_json(S.*)::jsonb as jsons from (
+--  execute E'
+  select row_to_json(S.*)::jsonb as jsons from (
     select
       $1 as object_id,
       milage,
       runtime,
-      justify_interval($3 - $2 - runtime) as parktime,
-      case when runtime = interval \'0\' then
+      justify_hours($3 - $2 - runtime) as parktime,
+      case when runtime = interval '0' then
         0
       else
-        round((milage*60*60/extract(epoch from runtime))::numeric, 3)
+        round((milage*60*60/extract(epoch from runtime))::numeric, 1)
       end as avg_speed
     from (
       select
@@ -214,34 +220,48 @@ begin
         milage
       end as milage,
       case when runtime is null then
-        interval \'0\'
+        interval '0'
       else
         runtime
       end as runtime
       from (
         select
           round((sum(distance)/1000)::numeric, 3) as milage,
-          justify_interval(sum(runtime)) as runtime
+          justify_hours(sum(runtime)) as runtime
         from (
           select
-            navigation.distance(C.data->\'location\', P.data->\'location\') as distance,
-            case when (c.data->\'speed\')::text::float>3 or (p.data->\'speed\')::text::float>3 then
-              c.time-p.time
+            navigation.distance(cdata->'1', pdata->'1') as distance,
+            case when (cdata->'2')::text::float>3 or (pdata->'2')::text::float>3 then
+              ctime-ptime
             else
-              interval \'0\'
+              interval '0'
             end as runtime,
-            c.data->\'speed\' as speed
-          from
-            events.data C
-          inner join
-            events.data P
-          on (C.prev = P.id)
-          where C.valid
-            and C.object_id=$1
-            and C.time between $2 and $3
-            and P.time between $2 and $3
+            cdata->'speed' as speed
+          from (
+            select
+              C.time as ctime,
+              P.time as ptime,
+              sensors.merge(c.data) over (t) as cdata,
+              sensors.merge(p.data) over (t) as pdata
+            from
+              events.data C
+            inner join
+              events.data P
+              on (C.prev = P.id)
+            where C.valid
+              and C.object_id=$1
+              and C.time between $2 and $3
+              and P.time between $2 and $3
+            window
+              t as (order by c.time)
+            order by
+              c.time
+            ) S4
         ) S3
       ) S2
     ) S1
-  ) S' using $1, $2, $3;
+  ) S
+--  '
+--  using $1, $2, $3
+  ;
 end $$ language plpgsql stable;

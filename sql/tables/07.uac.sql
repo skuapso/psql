@@ -119,12 +119,28 @@ alter table terminals.data alter column period set default '0:3:0';
 
 create view objects.sensors as
   select S.*,'object_sensor'::varchar as type from objects._sensors S
-  inner join objects.data O on (S.object_id=O.id);
+  inner join objects.data O on (S.object_id=O.id)
+  union all
+  select *,'object_sensor'::varchar as type
+  from (
+    select
+      OT.type_id,
+      O.id,
+      OT.type_id,
+      ports,
+      provides
+    from objects.data O
+    inner join terminals.data T on (O.terminal_id=T.id)
+    inner join terminals.ports P on (T.model_id=P.model_id)
+    inner join objects.tools OT on (P.provides=OT.id)
+    where
+    provides is not null
+  ) S1;
 
 create rule "create" as on insert to objects.sensors
 do instead
-  insert into objects._sensors (object_id, sensor_id, port_id)
-  select new.object_id, new.sensor_id, new.port_id
+  insert into objects._sensors (object_id, sensor_id, port_id, provides)
+  select new.object_id, new.sensor_id, new.port_id, new.provides
   from objects.data
   where id=new.object_id
   returning *,'object_sensor'::varchar;
@@ -135,13 +151,12 @@ do instead
     object_id=new.object_id,
     sensor_id=new.sensor_id,
     port_id=new.port_id
-  where id in (select id from objects.sensors)
+  where id in (select id from objects.sensors where id=new.id and old.id=new.id)
   returning *,'object_sensor'::varchar;
 create rule "delete" as on delete to objects.sensors
 do instead
   delete from objects._sensors
-  where id=old.id
-  and id in (select id from objects.sensors)
+  where id in (select id from objects.sensors where id=old.id)
   returning *,'object_sensor'::varchar;
 
 create view objects.get as select *,object.title(id) as title from objects.data;

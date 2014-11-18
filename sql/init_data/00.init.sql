@@ -1,3 +1,5 @@
+set client_min_messages to 'notice';
+do $$begin raise notice 'insert to options.data as %', current_user; end$$;
 insert into options.data (name, value) values
   ('terminal_auto_add', 'true'),
   ('sim_auto_add', 'true'),
@@ -7,25 +9,65 @@ insert into options.data (name, value) values
   ('radius_nas_auto_add', 'true')
   ;
 
+do $$begin raise notice 'insert to terminals.models as %', current_user; end$$;
 insert into terminals.models(title, protocols) values
-  ('Телтоника', '{"teltonika"}'),
-  ('Форт-111', '{"fort111","egts"}'),
-  ('Форт-300', '{"fort300"}'),
   ('Геликс-2', '{"gelix2nsk"}'),
-  ('АвтоГис', '{"agis"}'),
+  ('Форт-300', '{"fort300"}'),
+  ('Форт-111', '{"fort111","egts"}'),
   ('M2M GLX', '{"m2m"}'),
-  ('Wialon', '{"wialon"}'),
-  ('Форт-300GL', '{"fort300"}');
-
-insert into objects.types (title) values ('Подвижный объект'), ('Стационарный объект');
-
-insert into sensors.types (port_type, data_type) values
-  ('digital', 'bigint')
-  ,('analog', 'float')
-  ,('counter', 'bigint')
-  ,('location', 'geography')
+  ('Телтоника', '{"teltonika"}'),
+  ('АвтоГис', '{"agis"}'),
+  ('Wialon', '{"wialon"}')
   ;
 
+do $$begin raise notice 'insert to terminals.ports as %', current_user; end$$;
+insert into terminals.ports(model_id, ports) values
+  (2, '{"digital": {"in": [1, 2, 3, 4, 5, 6]}}')
+  ;
+
+do $$begin raise warning 'terminals ports not filled yet'; end$$;
+
+do $$begin raise notice 'insert to sensors.types as %', current_user; end$$;
+insert into sensors.types (title) values
+  ('Местоположение')
+  ,('Цифровой датчик')
+  ,('Аналоговый датчик')
+  ;
+
+do $$begin raise notice 'insert to objects.tools as %', current_user; end$$;
+insert into objects.tools(title, type_id) values
+  ('Местоположение', -1)
+  ,('Скорость', -3)
+  ,('Захваченые спутники', -2)
+  ,('Видимые спутники', -2)
+  ,('Внешнее питание', -3)
+  ,('Напряжение батареи', -3)
+  ,('Уровень GSM сиганала', -2)
+  ,('Зажигание', -2)
+  ;
+
+do $$begin raise notice 'insert to terminals.ports with provides as %', current_user; end$$;
+insert into terminals.ports(model_id, ports, provides)
+  select id,column1,column2
+  from terminals.models
+  inner join
+    (
+      values
+        ('"location"'::jsonb, 1)
+        ,('"speed"', 2)
+        ,('"used"', 3)
+    ) S2
+    on true;
+
+do $$begin raise notice 'insert to sensors.type_ports as %', current_user; end$$;
+insert into sensors.type_ports values
+  (-1, 'location', 'sensor.compute_location')
+  ,(-2, 'digital', null)
+  ,(-3, 'speed', null)
+  ,(-3, 'analog', null)
+  ;
+
+do $$begin raise notice 'setting roles as %', current_user; end$$;
 drop role "$all";
 drop role "$engineer";
 drop role "$user_manager";
@@ -54,6 +96,7 @@ grant usage on schema object      to "$user";
 grant usage on schema objects     to "$user";
 grant usage on schema sensor      to "$user";
 grant usage on schema sensors     to "$user";
+grant usage on schema terminal    to "$user";
 grant usage on schema terminals   to "$user";
 grant usage on schema uac         to "$user";
 grant usage on schema jsonb       to "$user";
@@ -63,14 +106,17 @@ grant select on _users.all        to "$user";
 grant select on events.data             to "$user";
 grant select on objects.data            to "$user";
 grant select on objects.groups          to "$user";
-grant select on objects.types           to "$user";
 grant select on objects.models          to "$user";
 grant select on objects.sensors         to "$user";
 grant select on objects.specializations to "$user";
+grant select on objects.tools           to "$user";
 grant select on sensors.data            to "$user";
 grant select on sensors.models          to "$user";
 grant select on sensors.types           to "$user";
+grant select on sensors.type_ports      to "$user";
 grant select on terminals.data          to "$user";
+grant select on terminals.models        to "$user";
+grant select on terminals.ports         to "$user";
 
 grant "$user" to "$manager";
 grant usage   on schema "group"               to "$manager";
@@ -84,13 +130,8 @@ grant update  on objects.seq__groups          to "$manager";
 grant all     on objects.groups               to "$manager";
 revoke delete on objects._groups            from "$manager";
 
-grant update  on objects.seq__sensors         to "$manager";
 grant all     on objects.sensors              to "$manager";
 revoke delete on objects._sensors           from "$manager";
-
-grant update  on objects.seq_types            to "$manager";
-grant all     on objects.types                to "$manager";
-revoke delete on objects.types              from "$manager";
 
 grant update  on objects.seq_models           to "$manager";
 grant all     on objects.models               to "$manager";
@@ -100,15 +141,19 @@ grant update  on objects.seq_specializations  to "$manager";
 revoke delete on objects.specializations    from "$manager";
 grant all     on objects.specializations      to "$manager";
 
+grant update  on objects.seq_tools            to "$manager";
+grant all     on objects.tools                to "$manager";
+revoke delete on objects.tools              from "$manager";
+
 grant update  on sensors.seq_ids              to "$manager";
-grant all     on sensors._data                 to "$manager";
-revoke delete on sensors._data               from "$manager";
+grant all     on sensors._data                to "$manager";
+revoke delete on sensors._data              from "$manager";
 
 grant update  on terminals.seq__data          to "$manager";
 grant all     on terminals.data               to "$manager";
 revoke delete on terminals._data            from "$manager";
 
-raise warning 'i think it should be done differently';
+do $$begin raise warning 'i think it should be done differently'; end$$;
 -- grant select on options.data to public?
 -- may be alter table options.data add column "module" and create view for each module?
 grant usage on schema option to "$writer";

@@ -66,7 +66,7 @@ begin
     packet.object(new.raw_id, true),
     packet.terminal(new.raw_id, true),
     new.eventtime,
-    event.prepare_data(new.data);
+    new.data;
   return new;
 end $$ language plpgsql;
 
@@ -74,12 +74,13 @@ create function event.merge_data()
 returns trigger
 as $$
 begin
+  return new;
   if new.prev is not null then
-    new.data = jsonb.extend(event.data(new.prev), new.data, array['used']::varchar[]);
+    new.data = jsonb.extend(event.data(new.prev), new.data);
   end if;
   if new.next is not null then
     update events._data
-    set data=jsonb.extend(new.data, event.data(new.next), array['used']::varchar[])
+    set data=jsonb.extend(new.data, event.data(new.next))
     where id=new.next;
   end if;
   return new;
@@ -93,20 +94,31 @@ begin
   where id=$1;
 end $$ language plpgsql stable strict;
 
-create function event.prepare_data(data jsonb) returns jsonb as $$
-  data = JSON.parse(data);
-  var loc;
-  if (data.used < 4) {
-    data = plv8.extend({}, data, ['location']);
-  } else {
-    loc = data.location;
-    if (loc) {
-      loc.latitude = plv8.ll_convert(loc, 'latitude');
-      loc.longitude = plv8.ll_convert(loc, 'longitude');
-    }
-  }
-  return JSON.stringify(data);
-$$ language plv8 stable strict;
+do $$begin raise notice 'можно в provide задать json (может быть сделать его функцией)'; end$$;
+do $$begin raise notice 'тогда можно будет всякие значения'; end$$;
+do $$begin raise notice 'для композитных (суммирование, усреднение) датчиков задать'; end$$;
+do $$begin raise notice 'обратить внимание на перезапись ключей json, нужен нормальный extend'; end$$;
+create function event.prepare_data() returns trigger as $$
+declare
+  cur cursor (_id bigint) for select * from objects.sensors where object_id = _id;
+  r record;
+  data jsonb := '{}';
+  val jsonb;
+  path text[];
+  vt text;
+begin
+  for r in cur(new.object_id) loop
+    continue when r.port_id is null or r.provides is null;
+    path = jsonb.path(r.port_id);
+    val = data.compute(new.object_id, r.id, new.data #> path);
+    if val is not null then
+      val = (json_build_object(r.provides::text, val))::jsonb;
+      data = jsonb.extend(data, val);
+    end if;
+  end loop;
+  new.data = data;
+  return new;
+end $$ language plpgsql;
 
 create function event.delete(_id bigint)
 returns bool
