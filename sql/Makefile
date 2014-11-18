@@ -31,7 +31,7 @@ help:
 include Makefile.config
 
 DBAUTH	:= -U $(DBUSER) -h $(DBHOST) -p $(DBPORT) $(DB)
-PSQL	:= PSQLRC=psqlrc /usr/bin/psql -q $(DBAUTH)
+PSQL	:= /usr/bin/psql -q $(DBAUTH)
 PGDUMPC := /usr/bin/pg_dump -F c -v -x $(DBAUTH)
 PGDUMPP	:= /usr/bin/pg_dump -F p -O -s -x $(DBAUTH)
 DBSHA	:= $(PGDUMPP) | egrep -v '^--' | egrep -v '^$$' | sha1sum -t | cut -f1 -d' '
