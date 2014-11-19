@@ -109,16 +109,16 @@ create aggregate navigation.part(bool)(
 
 create function navigation.to_geography(_location jsonb) returns geography as $$
 declare
-  alt text := $1->'altitude';
+  alt text := $1->>'altitude';
 begin
   if alt is null then
     alt = '0';
   end if;
   return (
     'POINTZ('
-      || ($1->'longitude')
+      || ($1->>'longitude')
       || ' '
-      || ($1->'latitude')
+      || ($1->>'latitude')
       || ' '
       || alt
       || ')'

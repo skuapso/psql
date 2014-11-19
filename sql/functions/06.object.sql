@@ -231,7 +231,7 @@ begin
         from (
           select
             navigation.distance(cdata->'1', pdata->'1') as distance,
-            case when (cdata->'2')::text::float>3 or (pdata->'2')::text::float>3 then
+            case when (cdata->>'2')::float>3 or (pdata->>'2')::float>3 then
               ctime-ptime
             else
               interval '0'

@@ -27,6 +27,6 @@ begin
     select *,'object_tool' as "type" from objects.tools
   ) tool
   union all select row_to_json(obj_sensors)::jsonb from (
-    select *,'object_sensor' as "type" from objects.sensors
+    select *,'object_sensor' as "type" from objects.sensors order by id
   ) obj_sensors;
 end $$ language plpgsql stable;

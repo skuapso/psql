@@ -44,11 +44,18 @@ create trigger pre_i_00_check_object
   when (new.object_id is null)
   execute procedure triggers.reject();
 
+create trigger pre_i_03_check_time
+  before insert
+  on events._data
+  for each row
+  when (new.valid and new.type='broken')
+  execute procedure event.set_not_valid();
+
 create trigger pre_i_04_check_time
   before insert
   on events._data
   for each row
-  when (new.time > new.id::timestamptz)
+  when (new.valid and new.time > new.id::timestamptz)
   execute procedure event.set_not_valid();
 
 create trigger pre_i_05_check_presence
