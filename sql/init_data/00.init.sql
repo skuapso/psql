@@ -83,6 +83,9 @@ create role "$manager"      nocreatedb nocreaterole nocreateuser nologin norepli
 create role "$user"         nocreatedb nocreaterole nocreateuser nologin noreplication;
 create role "$radius"       nocreatedb nocreaterole nocreateuser nologin noreplication;
 create role "$writer"       nocreatedb nocreaterole nocreateuser nologin noreplication;
+create role "osm"           nocreatedb nocreaterole nocreateuser   login noreplication;
+
+create schema if not exists authorization osm;
 
 alter table uac.groups disable trigger insertb_00_check_user_exists;
 insert into uac.groups values (default, null, '$all');

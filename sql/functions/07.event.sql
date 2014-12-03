@@ -76,11 +76,11 @@ as $$
 begin
   return new;
   if new.prev is not null then
-    new.data = jsonb.extend(event.data(new.prev), new.data);
+    new.data = jsonb.extend(event.data(new.prev), new.data, '{}');
   end if;
   if new.next is not null then
     update events._data
-    set data=jsonb.extend(new.data, event.data(new.next))
+    set data=jsonb.extend(new.data, event.data(new.next), '{}')
     where id=new.next;
   end if;
   return new;
@@ -98,7 +98,7 @@ do $$begin raise notice 'можно в provide задать json (может б�
 do $$begin raise notice 'тогда можно будет всякие значения'; end$$;
 do $$begin raise notice 'для композитных (суммирование, усреднение) датчиков задать'; end$$;
 do $$begin raise notice 'обратить внимание на перезапись ключей json, нужен нормальный extend'; end$$;
-create function event.prepare_data() returns trigger as $$
+create function event.set_sensors_data() returns trigger as $$
 declare
   cur cursor (_id bigint) for select * from objects.sensors where object_id = _id;
   r record;
@@ -111,10 +111,10 @@ begin
     continue when r.port_id is null or r.provides is null;
     path = jsonb.path(r.port_id);
     val = data.compute(new.object_id, r.id, new.data #> path);
-    if val is not null then
-      val = (json_build_object(r.provides::text, val))::jsonb;
-      data = jsonb.extend(data, val);
-    end if;
+    continue when val is null;
+    val = (json_build_object(r.provides::text, val))::jsonb;
+    continue when val is null;
+    data = jsonb.extend(data, val);
   end loop;
   new.data = data;
   return new;
@@ -143,4 +143,26 @@ declare
 begin
   select id into i from events.data where object_id=$1 and time=$2 and valid;
   return event.delete(i);
+end $$ language plpgsql;
+
+do $$begin raise warning 'заглушки'; end $$;
+create function event.set_diffs()
+returns trigger
+as $$
+begin
+  return new;
+end $$ language plpgsql;
+
+create function event.correct_diffs()
+returns trigger
+as $$
+begin
+  return new;
+end $$ language plpgsql;
+
+create function event.set_places()
+returns trigger
+as $$
+begin
+  return new;
 end $$ language plpgsql;

@@ -16,6 +16,7 @@ create type connections.types as enum(
   'ip'
 );
 
+do $$begin raise warning 'should check that unique violation is in right column'; end $$;
 create function data.binary_id(
   _id timestamptz,
   _data bytea)
@@ -30,7 +31,7 @@ begin
       return i;
     end if;
     begin
-      insert into data.binary values ($1::bigint, $2) returning data_id::timestamptz into i;
+      insert into data.binary values ($1::bigint, $2);
     exception when unique_violation then
     end;
   end loop;

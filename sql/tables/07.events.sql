@@ -44,7 +44,7 @@ create trigger pre_i_00_check_object
   when (new.object_id is null)
   execute procedure triggers.reject();
 
-create trigger pre_i_03_check_time
+create trigger pre_i_03_check_type
   before insert
   on events._data
   for each row
@@ -76,20 +76,44 @@ create trigger pre_i_20_set_neighbours
   when (new.valid)
   execute procedure event.set_neighbours();
 
-create trigger pre_i_03_set_data
+create trigger pre_i_25_set_diffs
   before insert
   on events._data
   for each row
-  execute procedure event.prepare_data();
+  when (new.valid and new.prev is not null)
+  execute procedure event.set_diffs();
 
-create trigger pre_i_30_merge_data
+create trigger pre_i_26_correct_diffs
+  before insert
+  on events._data
+  for each row
+  when (new.valid and new.next is not null)
+  execute procedure event.correct_diffs();
+
+create trigger pre_i_30_set_sensors
+  before insert
+  on events._data
+  for each row
+  execute procedure event.set_sensors_data();
+
+create trigger pre_i_40_update_location
+  before insert
+  on events._data
+  for each row
+  when (new.valid and
+--    (пройдена дистанция до границы полигона, изменились предположительные места)
+    false
+  )
+  execute procedure event.set_places();
+
+create trigger pre_i_90_merge_data
   before insert
   on events._data
   for each row
   when (new.valid)
   execute procedure event.merge_data();
 
-create trigger post_i_40_update_object
+create trigger post_i_50_update_object
   after insert
   on events._data
   for each row

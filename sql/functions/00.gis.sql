@@ -25,3 +25,104 @@ begin
   from gis.data
   where st_intersects(geography, $1);
 end $$ language plpgsql immutable;
+
+create function gis.class(_id bigint)
+returns gis.types
+as $$
+begin
+  return (select class from gis._data where id=$1 limit 1);
+end $$ language plpgsql immutable;
+
+create function gis.geography_id(_data geography)
+returns bigint
+as $$
+declare
+  i bigint;
+begin
+  loop
+    select data_id into i from gis._geography where md5(data)=md5($1::bytea);
+    if found then
+      return i;
+    end if;
+    begin
+      insert into gis._geography(data) values($1);
+    exception when unique_violation then
+    end;
+  end loop;
+end $$ language plpgsql strict;
+
+create function gis.geography_id(_osm_id bigint)
+returns bigint[]
+as $$
+begin
+  insert into gis._geography(data, osm_id)
+    select
+      way,$1
+    from
+      (
+        select way from (
+          select distinct
+            case
+              when geometryType(way) = 'LINESTRING' and st_isClosed(way)
+                then st_makePolygon(way)
+              else
+                way
+            end as way
+          from (
+            select way
+            from ru_polygon
+            where osm_id=$1
+            union all
+            select way
+            from ru_line
+            where osm_id=$1
+          ) S1
+        ) O
+        left join lateral (
+          select true as present
+          from gis._geography G
+          where md5(g.data::bytea)=md5(O.way::bytea)
+        ) S on true
+        where
+          present is null
+      ) S2
+    where way is not null;
+  return (select array_agg(data_id) from gis._geography where osm_id=$1);
+end $$ language plpgsql strict;
+
+create or replace function gis.places(_longitude float, _latitude float)
+returns bigint[]
+as $$
+begin
+  return array(
+    select D.data_id
+    from (
+      select
+        point,
+        st_buffer(point, 50) as circle
+      from (select ('POINT(' || $1 || ' ' || $2 || ')')::geography as point) S1
+    ) S
+    join gis.data D on (circle && data)
+    where ((geometryType(data)='LINESTRING' and st_intersects(data, circle))
+      or (geometryType(data)='POLYGON' and st_covers(data::geometry, point::geometry)))
+    group by d.data_id,class
+    order by class
+    );
+end $$ language plpgsql stable strict;
+
+create function gis.possible_places(_longitude float, _latitude float)
+returns bigint[]
+as $$
+begin
+  return array(
+    select distinct D.data_id
+    from (
+      select
+        point,
+        st_buffer(point, 50) as circle
+      from (select ('POINT(' || $1 || ' ' || $2 || ')')::geography as point) S1
+    ) S
+    join gis.data D on (circle && data)
+    order by d.data_id
+    );
+end $$ language plpgsql stable strict;
