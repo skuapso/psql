@@ -20,44 +20,31 @@ create cast(navigation.coords_gm as real) with function
 create cast(navigation.coords_gm as float8) with function
   navigation.coords2float8(navigation.coords_gm);
 
-create function navigation.distance(lon1 float, lat1 float, alt1 float, lon2 float, lat2 float, alt2 float) returns float as $$
-declare
-  pi float;
-  earth_radius float;
-  x1 float;
-  y1 float;
-  x2 float;
-  y2 float;
-  radius float;
+create function navigation.distance(geography, geography) returns float as $$
 begin
-  pi = 3.14159265358979;
-  earth_radius = 6371302;
-  x1 = lon1 * pi/180;
-  y1 = lat1 * pi/180;
-  x2 = lon2 * pi/180;
-  y2 = lat2 * pi/180;
-  radius = earth_radius + (lat1 + lat2)/2;
-  return sqrt(
-    (x2-x1)*(x2-x1)*radius*radius*cos(y2/2+y1/2)*cos(y2/2+y1/2)
-    + (y2-y1)*(y2-y1)*radius*radius
-    + (alt2-alt1)*(alt2-alt1)
-  );
+  return (6371008.77141506 + (navigation.z($1) + navigation.z($2))/2) / 6371008.77141506
+          * st_distance($1, $2, false)
 end $$ language plpgsql immutable;
+
 create function navigation.distance(x1 float, y1 float, x2 float, y2 float) returns float as $$
 begin
-  return st_distance(
-    ('pointz(' || x1 || ' ' || y1 || ' 0)')::geography,
-    ('pointz(' || x2 || ' ' || y2 || ' 0)')::geography
+  return navigation.distance(
+    ('point(' || x1 || ' ' || y1 || ')')::geography,
+    ('point(' || x2 || ' ' || y2 || ')')::geography
   );
 end $$ language plpgsql immutable;
+
+create function navigation.distance(lon1 float, lat1 float, alt1 float, lon2 float, lat2 float, alt2 float) returns float as $$
+begin
+  return navigation.distance(
+    ('point(' || lon1 || ' ' || lat1 || ' ' || alt1 || ')')::geography,
+    ('point(' || lon2 || ' ' || lat2 || ' ' || alt2 || ')')::geography
+  );
+end $$ language plpgsql immutable;
+
 create function navigation.distance(x1 navigation.coords_gm, y1 navigation.coords_gm, x2 navigation.coords_gm, y2 navigation.coords_gm) returns float as $$
 begin
   return navigation.distance($1::float, $2::float, $3::float, $4::float);
-end $$ language plpgsql immutable;
-
-create function navigation.distance(geography, geography) returns float as $$
-begin
-  return st_distance($1, $2);
 end $$ language plpgsql immutable;
 
 create function navigation.distance(jsonb, jsonb) returns float as $$
@@ -77,7 +64,9 @@ end $$ language plpgsql immutable strict;
 
 create function navigation.z(geography) returns float8 as $$
 begin
-  return st_z($1::geometry);
+  return case when st_z($1::geometry) is null then 0
+              else st_z($1::geometry)
+          end;
 end $$ language plpgsql immutable strict;
 
 
