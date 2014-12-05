@@ -23,7 +23,7 @@ create cast(navigation.coords_gm as float8) with function
 create function navigation.distance(geography, geography) returns float as $$
 begin
   return (6371008.77141506 + (navigation.z($1) + navigation.z($2))/2) / 6371008.77141506
-          * st_distance($1, $2, false)
+          * st_distance($1, $2, false);
 end $$ language plpgsql immutable;
 
 create function navigation.distance(x1 float, y1 float, x2 float, y2 float) returns float as $$
