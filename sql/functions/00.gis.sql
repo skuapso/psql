@@ -90,39 +90,32 @@ begin
   return (select array_agg(data_id) from gis._geography where osm_id=$1);
 end $$ language plpgsql strict;
 
-create or replace function gis.places(_longitude float, _latitude float)
+do $$begin raise warning 'some roads in two counties => no county'; end$$;
+create or replace function gis.places(_point geography)
 returns bigint[]
 as $$
 begin
   return array(
-    select D.data_id
-    from (
-      select
-        point,
-        st_buffer(point, 50) as circle
-      from (select ('POINT(' || $1 || ' ' || $2 || ')')::geography as point) S1
-    ) S
-    join gis.data D on (circle && data)
-    where ((geometryType(data)='LINESTRING' and st_intersects(data, circle))
-      or (geometryType(data)='POLYGON' and st_covers(data::geometry, point::geometry)))
-    group by d.data_id,class
+    with
+      g as (select $1 as point, st_buffer($1, 50) as circle),
+      pp as (
+        select data_id,data,class from gis.data join g on (g.circle && data) order by class
+      ),
+      place as (
+        select pp.data_id
+        from pp,g
+        where (geometryType(pp.data)='LINESTRING' and st_intersects(pp.data, g.circle))
+          or (geometrytype(pp.data)='POLYGON' and st_covers(pp.data, g.point))
+        limit 1
+      )
+    select id from
+    gis.data
+    join (
+      select data_id from place
+      union all
+      select parent_id from gis._parents join place using(data_id)
+    ) S using(data_id)
+    group by id,class
     order by class
-    );
-end $$ language plpgsql stable strict;
-
-create function gis.possible_places(_longitude float, _latitude float)
-returns bigint[]
-as $$
-begin
-  return array(
-    select distinct D.data_id
-    from (
-      select
-        point,
-        st_buffer(point, 50) as circle
-      from (select ('POINT(' || $1 || ' ' || $2 || ')')::geography as point) S1
-    ) S
-    join gis.data D on (circle && data)
-    order by d.data_id
-    );
+  );
 end $$ language plpgsql stable strict;

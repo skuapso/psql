@@ -66,6 +66,8 @@ as $$
   var loc = JSON.parse(_val);
   loc.latitude = plv8.ll_convert(loc.latitude);
   loc.longitude = plv8.ll_convert(loc.longitude);
+  loc.places = plv8.execute("select gis.places(($1::jsonb)::geography)", [JSON.stringify(loc)])
+                        [0].places;
   return JSON.stringify(loc);
 $$ language plv8 immutable;
 

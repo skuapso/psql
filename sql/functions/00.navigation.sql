@@ -69,7 +69,6 @@ begin
           end;
 end $$ language plpgsql immutable strict;
 
-
 create type navigation.part_type as(
   current bool
   ,part_no bigint
