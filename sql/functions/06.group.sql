@@ -141,3 +141,12 @@ begin
   limit 1;
   return new;
 end $$ language plpgsql;
+
+create or replace function "group".add(_title varchar, _parent_id bigint default null)
+returns bigint
+as $$
+declare i bigint;
+begin
+  insert into objects.groups(title, parent_id) values ($1, $2) returning id into i;
+  return i;
+end $$ language plpgsql;
