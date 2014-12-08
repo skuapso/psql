@@ -153,7 +153,7 @@ grant all     on sensors._data                to "$manager";
 revoke delete on sensors._data              from "$manager";
 
 grant update  on terminals.seq__data          to "$manager";
-grant all     on terminals.data               to "$manager";
+grant all     on terminals._data              to "$manager";
 revoke delete on terminals._data            from "$manager";
 
 do $$begin raise warning 'i think it should be done differently'; end$$;
