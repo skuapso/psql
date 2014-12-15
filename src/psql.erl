@@ -52,7 +52,7 @@ start_link() ->
   supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 connection_accepted(Pid, Proto, Socket, Timeout) when is_port(Socket) ->
-  trace("new connection accepted"),
+  '_trace'("new connection accepted"),
   {ok, {RemoteIP, RemotePort}} = inet:peername(Socket),
   {ok, {LocalIP, LocalPort}} = inet:sockname(Socket),
   ConnectionId = now2id(),
@@ -60,20 +60,20 @@ connection_accepted(Pid, Proto, Socket, Timeout) when is_port(Socket) ->
                                [ConnectionId, Proto, LocalIP, LocalPort, RemoteIP, RemotePort]},
               Timeout),
   hooks:set(Pid, connection_id, ConnectionID),
-  debug("~w connection id is ~w", [Pid, ConnectionID]),
+  '_debug'("~w connection id is ~w", [Pid, ConnectionID]),
   ok.
 
 connection_closed(Pid, normal, Timeout) ->
   case hooks:get(Pid, connection_id) of
     undefined ->
-      alert("connection closed, but no connection ID specified for ~w", [Pid]),
+      '_alert'("connection closed, but no connection ID specified for ~w", [Pid]),
       ok;
     ConnectionId ->
-      debug("closing connection ~w", [ConnectionId]),
+      '_debug'("closing connection ~w", [ConnectionId]),
       case execute(-10, function, {connection, close, [ConnectionId]}, Timeout) of
-        [[{close, ConnectionId}]] -> trace("connection closed"), ok;
-        [[{close, null}]] -> alert("no connection in DB ~w", [ConnectionId]), ok;
-        [] -> alert("no connection in DB ~w", [ConnectionId]), ok
+        [[{close, ConnectionId}]] -> '_trace'("connection closed"), ok;
+        [[{close, null}]] -> '_alert'("no connection in DB ~w", [ConnectionId]), ok;
+        [] -> '_alert'("no connection in DB ~w", [ConnectionId]), ok
       end
   end;
 connection_closed(Pid, {broken, Data}, Timeout) ->
@@ -83,16 +83,14 @@ connection_closed(Pid, {broken, Data}, Timeout) ->
   connection_closed(Pid, normal, Timeout);
 connection_closed(Pid, {incomplete, Data}, Timeout) ->
   connection_closed(Pid, {broken, Data}, Timeout);
-connection_closed(Pid, {function_clause, [{_Module, parse, [Data], _FileInfo} | _ ]}, Timeout) ->
-  connection_closed(Pid, {broken, Data}, Timeout);
 connection_closed(Pid, Reason, Timeout) ->
-  warning("closed connection with unknown reason ~w", [Reason]),
+  '_warning'("closed connection with unknown reason ~w", [Reason]),
   connection_closed(Pid, normal, Timeout).
 
 terminal_uin(_Pid, Terminal, Timeout) ->
   TerminalId = get_terminal_id(Terminal, Timeout),
   ConnectionId = hooks:get(connection_id),
-  debug("setting terminal ~w on connection ~w", [TerminalId, ConnectionId]),
+  '_debug'("setting terminal ~w on connection ~w", [TerminalId, ConnectionId]),
   hooks:set(terminal_id, TerminalId),
   execute(10, function, {connection, set_terminal, [ConnectionId, TerminalId]}, Timeout),
   ok.
@@ -100,26 +98,26 @@ terminal_uin(_Pid, Terminal, Timeout) ->
 terminal_info(_Pid, _Terminal, M, _Timeout) when map_size(M) =:= 0 ->
   ok;
 terminal_info(_Pid, Terminal, Info, Timeout) ->
-  debug("setting terminal ~w info ~w", [Terminal, Info]),
+  '_debug'("setting terminal ~w '_info' ~w", [Terminal, Info]),
   TerminalId = get_terminal_id(Terminal, Timeout),
   execute(5, function, {terminal, set_info, [TerminalId, json_enc(Info)]}, Timeout),
   ok.
 
 terminal_raw_data(_Pid, _Terminal, RawData, Timeout) ->
-  trace("terminal raw data"),
+  '_trace'("terminal raw data"),
   ConnectionID = hooks:get(connection_id),
   RawID = now2id(),
   case execute(1000, function, {data, add_raw, [RawID, RawData, ConnectionID]}, Timeout) of
     [] ->
-      debug("data repeat"),
+      '_debug'("data repeat"),
       hooks:delete(raw_id),
       stop;
     [[{add_raw, null}]] ->
-      debug("data repeat"),
+      '_debug'("data repeat"),
       hooks:delete(raw_id),
       stop;
     [[{add_raw, RawID}]] ->
-      debug("raw id is ~w", [RawID]),
+      '_debug'("raw id is ~w", [RawID]),
       hooks:set(raw_id, RawID),
       ok
   end.
@@ -127,7 +125,7 @@ terminal_raw_data(_Pid, _Terminal, RawData, Timeout) ->
 terminal_packet(_Pid, _Terminal, #{type := Type,
                                    raw := RawPacket
                                   } = Packet, Timeout) ->
-  trace("terminal packet"),
+  '_trace'("terminal packet"),
   Eventtime = case maps:get(eventtime, Packet, undefined) of
                 undefined -> erlang:universaltime();
                 ET -> ET
@@ -154,7 +152,7 @@ terminal_packet(_Pid, _Terminal, #{type := Type,
   end.
 
 terminal_answer(_Pid, _Terminal, Module, Answer, Timeout) ->
-  trace("terminal answer"),
+  '_trace'("terminal answer"),
   case hooks:get(raw_id) of
     undefined ->
       stop;
@@ -168,7 +166,7 @@ get(_Pid, terminal, id, Terminal, Timeout) ->
   hooks:set(terminal_id, TID),
   {ok, {?MODULE, TID}};
 get(_Pid, replica, servers, {_Module, _UIN}, Timeout) ->
-  trace("getting servers"),
+  '_trace'("getting servers"),
   TerminalID = hooks:get(terminal_id),
   ConnectionID = hooks:get(connection_id),
   ServersPrepare = execute(100, function,
@@ -180,10 +178,10 @@ get(_Pid, replica, servers, {_Module, _UIN}, Timeout) ->
           ServerProto = binary_to_atom(proplists:get_value(server_protocol, X), latin1),
           [ServerId, ServerProto]
       end, ServersPrepare),
-  debug("servers: ~w", [Servers]),
+  '_debug'("servers: ~w", [Servers]),
   {ok, {?MODULE, Servers}};
 get(_Pid, replica, server_info, ServerId, Timeout) ->
-  trace("getting server info"),
+  '_trace'("getting server '_info'"),
   {ok, {?MODULE, execute(30000, function, {replica, server_info, [ServerId]}, Timeout)}};
 get(_Pid, replica, data, {ServerID, Terminal, Points}, Timeout) ->
   TerminalID = get_terminal_id(Terminal, Timeout),
@@ -206,7 +204,7 @@ get(_Pid, replica, undelivered, ServerID, Timeout) ->
   Data = execute(20000, function, {replica, undelivered, [ServerID]}, Timeout),
   {ok, {?MODULE, Data}};
 get(_Pid, m2m, track_info, {Type, EventTime, Lat, Lon, Used, Speed, Course}, Timeout) ->
-  trace("searching for m2m track info"),
+  '_trace'("searching for m2m track '_info'"),
   TerminalID = hooks:get(terminal_id),
   Params = [Type, TerminalID, EventTime, Lat, Lon, Used, Speed, Course],
   [Data] = execute(500, function, {replica, m2m, Params}, Timeout),
@@ -214,7 +212,7 @@ get(_Pid, m2m, track_info, {Type, EventTime, Lat, Lon, Used, Speed, Course}, Tim
   Action = proplists:get_value(action, Data, 0),
   Reboot = proplists:get_value(reboot, Data, 0),
   Reply = {Action, Track, Reboot},
-  debug("reply is ~w", [Reply]),
+  '_debug'("reply is ~w", [Reply]),
   {ok, {?MODULE, Reply}};
 get(_Pid, terminal, command, Terminal, Timeout) ->
   TerminalId = get_terminal_id(Terminal, Timeout),
@@ -283,7 +281,7 @@ init(Opts) ->
   hooks:install({?MODULE, get}, HooksWeight, {?MODULE, get}),
   hooks:install({?MODULE, set}, HooksWeight, {?MODULE, set}),
   Args = get_opts(Opts),
-  debug("connection options: ~w", [Args]),
+  '_debug'("connection options: ~w", [Args]),
   {
     ok,
     {
@@ -348,8 +346,8 @@ now2id() ->
 json_enc(L) ->
   L1 = pre_json(L),
   case catch jsxn:encode(L1) of
-    {'EXIT', {badarg, _}} -> warning("can't transform to json: ~w", [L1]), <<"{}">>;
-    {'EXIT', Reason} -> warning("jsx failed transform ~w: ~w", [L1, Reason]), <<"{}">>;
+    {'EXIT', {badarg, _}} -> '_warning'("can't transform to json: ~w", [L1]), <<"{}">>;
+    {'EXIT', Reason} -> '_warning'("jsx failed transform ~w: ~w", [L1, Reason]), <<"{}">>;
     E -> E
   end.
 

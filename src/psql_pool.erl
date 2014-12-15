@@ -55,7 +55,7 @@ request(Pid, Priority, Query, Timeout) when Priority > -10000 ->
 %% @doc
 %% Creates an event manager
 %%
-%% @spec start_link() -> {ok, Pid} | {error, Error}
+%% @spec start_link() -> {ok, Pid} | {'_err'or, Error}
 %% @end
 %%--------------------------------------------------------------------
 start_link(Opts, MaxConnections, QueueSize) ->
@@ -67,7 +67,7 @@ start_link(Name, Opts, MaxConnections, QueueSize) ->
 %%% gen_server callbacks
 %%%===================================================================
 init({Opts, MaxConnections, QueueSize}) ->
-  trace("init"),
+  '_trace'("init"),
   process_flag(trap_exit, true),
   WEts = ets:new(workers, [ordered_set, protected]),
   QEts = ets:new(queries, [ordered_set, protected]),
@@ -85,29 +85,29 @@ handle_cast(new_request, #state{queries_ets = QEts} = State) ->
     {[[Priority, Tag, From, Query]], _} ->
       psql({{Priority, Tag, From}, Query}, State);
     '$end_of_table' ->
-      trace("query not found");
+      '_trace'("query not found");
     Else ->
-      emerg("unknown answer while searching ~w", [Else])
+      '_emerg'("unknown answer while searching ~w", [Else])
   end,
   {noreply, State};
 handle_cast(Msg, State) ->
-  notice("unhandled cast ~w when ~w", [Msg, State]),
+  '_notice'("unhandled cast ~w when ~w", [Msg, State]),
   {noreply, State}.
 
 handle_call({request, Priority, Query}, From, #state{queries_ets = QEts} = State) ->
-  trace("new request ~w with priority ~w from ~w", [Query, Priority, From]),
+  '_trace'("new request ~w with priority ~w from ~w", [Query, Priority, From]),
   link(From),
   ets:insert(QEts, {{Priority, now(), From}, Query}),
-  debug("ets is ~w", [ets:match(QEts, '$1')]),
+  '_debug'("ets is ~w", [ets:match(QEts, '$1')]),
   check_queries(State),
   new_request(),
   {noreply, State};
 handle_call(Msg, From, State) ->
-  notice("unhanded call ~w from ~w when ~w", [Msg, From, State]),
+  '_notice'("unhanded call ~w from ~w when ~w", [Msg, From, State]),
   {noreply, State}.
 
 handle_info({psql_worker, Pid, Answer}, #state{workers_ets = WEts} = State) ->
-  debug("answer ~w from ~w", [Answer, Pid]),
+  '_debug'("answer ~w from ~w", [Answer, Pid]),
   case ets:match(WEts, {Pid, {'_', '_', '$1'}, '_'}) of
     [[From]] ->
       gen_server:reply(From, Answer),
@@ -115,25 +115,25 @@ handle_info({psql_worker, Pid, Answer}, #state{workers_ets = WEts} = State) ->
     _ ->
       if
         Answer =:= {error, timeout} -> ok;
-        true -> emerg("can't find from for ~w", [Pid])
+        true -> '_emerg'("can't find from for ~w", [Pid])
       end
   end,
   ets:insert(WEts, {Pid, ready}),
   new_request(),
   {noreply, State};
 handle_info({'EXIT', Pid, Reason}, State) ->
-  trace("~w finished", [Pid]),
+  '_trace'("~w finished", [Pid]),
   case whois(Pid, State) of
     worker ->
       clean_worker(Pid, Reason, State);
     client ->
       clean_client(Pid, State);
     _ ->
-      warning("unknown process died ~w", [Pid])
+      '_warning'("unknown process died ~w", [Pid])
   end,
   {noreply, State};
 handle_info(Info, State) ->
-  warning("unhandled info msg ~w", [Info]),
+  '_warning'("unhandled '_info' msg ~w", [Info]),
   {noreply, State}.
 
 %%--------------------------------------------------------------------
@@ -147,7 +147,7 @@ handle_info(Info, State) ->
 %% @end
 %%--------------------------------------------------------------------
 terminate(Reason, _S) ->
-  debug("terminating because ~w", [Reason]),
+  '_debug'("terminating because ~w", [Reason]),
   ok.
 
 %%--------------------------------------------------------------------
@@ -172,7 +172,7 @@ check_queries(#state{queries_ets = QEts} = State, _) ->
   delete_first_query(Priority, State).
 
 delete_first_query(Priority, _State) when Priority < 0 ->
-  emerg("queue is full of system messages");
+  '_emerg'("queue is full of system messages");
 delete_first_query(P, #state{queries_ets = QEts}) ->
   {[[Tag, From, GenTag]], _} = ets:match(QEts, {{P, '$1', {'$2', '$3'}}, '_'}, 1),
   ets:delete(QEts, {P, Tag, {From, GenTag}}),
@@ -180,16 +180,16 @@ delete_first_query(P, #state{queries_ets = QEts}) ->
   From ! {'DOWN', GenTag, process, ?MODULE, timeout}.
 
 clean_worker(Pid, normal, #state{workers_ets = WEts, backends_ets = BEts}) ->
-  trace("worker ~w terminated", [Pid]),
+  '_trace'("worker ~w terminated", [Pid]),
   case ets:match(WEts, {Pid, '$1'}) of
     [[ready]] -> ok;
-    Else -> warning("died while ~w", [Else])
+    Else -> '_warning'("died while ~w", [Else])
   end,
   ets:delete(WEts, Pid),
   ets:delete(BEts, Pid),
   ok;
 clean_worker(Pid, Reason, State) ->
-  warning("worker ~w terminated with reason ~w", [Pid, Reason]),
+  '_warning'("worker ~w terminated with reason ~w", [Pid, Reason]),
   clean_worker(Pid, normal, State).
 
 clean_client(Pid, #state{queries_ets = QEts} = State) ->
@@ -201,29 +201,29 @@ clean_client(Pid, #state{queries_ets = QEts} = State) ->
             ets:delete(QEts, {Priority, Tag, {Pid, Tag1}})
         end, L);
     Else ->
-      emerg("unknown answer while search not started queries ~w", [Else])
+      '_emerg'("unknown answer while search not started queries ~w", [Else])
   end.
 
 cancel_backend(Pid, #state{workers_ets = WEts} = State) ->
   case ets:match(WEts, {'$1', {'$2', '_', {Pid, '_'}}, '$3'}) of
     [] ->
-      warning("no backends to cancel, pid is ~w", [Pid]),
-      debug("workers ets ~w", [ets:match(WEts, '$1')]),
-      debug("queries ets ~w", [ets:match(State#state.queries_ets, '$1')]),
-      debug("backends ets ~w", [ets:match(State#state.backends_ets, '$1')]);
+      '_warning'("no backends to cancel, pid is ~w", [Pid]),
+      '_debug'("workers ets ~w", [ets:match(WEts, '$1')]),
+      '_debug'("queries ets ~w", [ets:match(State#state.queries_ets, '$1')]),
+      '_debug'("backends ets ~w", [ets:match(State#state.backends_ets, '$1')]);
     L when is_list(L) ->
       lists:map(fun([Wid, Priority, Query]) ->
-            warning("canceling worker ~w query is ~w, priority ~w", [Wid, Query, Priority]),
+            '_warning'("canceling worker ~w query is ~w, priority ~w", [Wid, Query, Priority]),
             case ets:match(State#state.backends_ets, {Wid, '$1'}) of
               [[Bid]] ->
                 ets:insert(WEts, {Wid, canceling}),
                 gen_fsm:send_event(Bid, timeout);
               _ ->
-                warning("no backend id for ~w", [Wid])
+                '_warning'("no backend id for ~w", [Wid])
             end
         end, L);
     Else ->
-      warning("unknown answer while search ~w", [Else])
+      '_warning'("unknown answer while search ~w", [Else])
   end.
 
 whois(Pid, State) ->
@@ -252,16 +252,16 @@ request_worker(Pid, {Id, {Request, Data}}, #state{queries_ets = QEts, workers_et
   psql_worker:Request(Pid, Data).
 
 get_ready(#state{workers_ets = WEts} = State) ->
-  trace("searching for ready"),
+  '_trace'("searching for ready"),
   case ets:match(WEts, {'$1', ready}, 1) of
     {[[Pid]], _} ->
-      trace("found ~w", [Pid]),
+      '_trace'("found ~w", [Pid]),
       {ok, Pid};
     '$end_of_table' ->
-      trace("not found, starting new"),
+      '_trace'("not found, starting new"),
       new(ets:select_count(WEts, ?CountSpec), State);
     Else ->
-      emerg("unknown answer while searching ~w", [Else]),
+      '_emerg'("unknown answer while searching ~w", [Else]),
       Else
   end.
 
@@ -269,8 +269,8 @@ new(CurNo, #state{max_connections = MaxNo, options = Opts}) when
     (MaxNo =:= infinity) or
     (MaxNo =:= -1) or
     (CurNo < MaxNo) ->
-  trace("starting new worker"),
-  if (CurNo + 2) =:= MaxNo -> warning("max connections reached"); true -> ok end,
+  '_trace'("starting new worker"),
+  if (CurNo + 2) =:= MaxNo -> '_warning'("max connections reached"); true -> ok end,
   psql_worker:start_link(Opts);
 new(_, _) ->
   {error, max_connection_reached}.

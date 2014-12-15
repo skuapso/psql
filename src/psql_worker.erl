@@ -47,7 +47,7 @@
 %% initialize. To ensure a synchronized start-up procedure, this
 %% function does not return until Module:init/1 has returned.
 %%
-%% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
+%% @spec start_link() -> {ok, Pid} | ignore | {'_err'or, Error}
 %% @end
 %%--------------------------------------------------------------------
 insert(Pid, {Module, Type, Data}) ->
@@ -76,7 +76,7 @@ start_link([Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout, Commands]) ->
 start_link(Host, Port, User, Passwd, DB, SSL, SSLOpts, undefined, Commands) ->
   start_link(Host, Port, User, Passwd, DB, SSL, SSLOpts, ?WAIT_TIMEOUT, Commands);
 start_link(Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout, Commands) ->
-  trace("starting"),
+  '_trace'("starting"),
   case gen_fsm:start_link(?MODULE,
                           [Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout, Commands],
                           [{timeout, Timeout}]) of
@@ -106,7 +106,7 @@ start_link(Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout, Commands) ->
 %% @end
 %%--------------------------------------------------------------------
 init([Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout, Commands]) ->
-  trace("initialization"),
+  '_trace'("initialization"),
   gen_fsm:send_event(self(),
                      {connect, Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout, Commands}),
   {ok, disconnected, #state{}, Timeout};
@@ -129,18 +129,18 @@ init([Pid, Timeout]) ->
 %% @end
 %%--------------------------------------------------------------------
 disconnected({connect, Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout, Commands}, _S) ->
-  trace("connecting"),
+  '_trace'("connecting"),
   Opts = [{port, Port}, {database, DB}, {ssl, SSL}, {ssl_opts, SSLOpts}, {timeout, infinity}],
-  debug("connecting to ~s:~w, user ~s, opts ~w", [Host, Port, User, Opts]),
+  '_debug'("connecting to ~s:~w, user ~s, opts ~w", [Host, Port, User, Opts]),
   {ok, C} = pgsql:connect(Host, User, Passwd, Opts),
   Commands = misc:get_env(psql, pre_commands, []),
-  debug("pre commands is ~w", [Commands]),
+  '_debug'("pre commands is ~w", [Commands]),
   lists:map(fun(X) ->
-        debug("running command ~s", [X]),
+        '_debug'("running command ~s", [X]),
         A = pgsql:squery(C, X),
-        debug("answer is ~w", [A])
+        '_debug'("answer is ~w", [A])
     end, Commands),
-  trace("connected"),
+  '_trace'("connected"),
   {next_state, ready, #state{socket=C, timeout=Timeout}, Timeout}.
 
 ready({Pid, Query, Values}, State) ->
@@ -171,12 +171,12 @@ ready(timeout, S) ->
 ready(backend, _From, #state{socket = Socket} = State) ->
   {reply, {ok, Socket}, ready, State, State#state.timeout};
 ready({Query, Values}, _From, S) ->
-  trace("quering"),
-  debug("query ~w", [Query]),
-  debug("values ~w", [Values]),
+  '_trace'("quering"),
+  '_debug'("query ~w", [Query]),
+  '_debug'("values ~w", [Values]),
   Reply = normalize(pgsql:equery(S#state.socket, Query, Values)),
-  trace("query finished"),
-  debug("reply is ~w", [Reply]),
+  '_trace'("query finished"),
+  '_debug'("reply is ~w", [Reply]),
   {reply, Reply, ready, S, S#state.timeout}.
 
 %%--------------------------------------------------------------------
@@ -243,11 +243,11 @@ handle_info(_Info, StateName, State) ->
 %% @end
 %%--------------------------------------------------------------------
 terminate(normal, ready, #state{socket = C} = _S) ->
-  trace("terminating"),
+  '_trace'("terminating"),
   close(C),
   ok;
 terminate(Reason, StateName, #state{socket = C} = _S) ->
-  warning("terminating when ~w, reason ~w", [StateName, Reason]),
+  '_warning'("terminating when ~w, reason ~w", [StateName, Reason]),
   close(C),
   ok.
 
@@ -325,14 +325,14 @@ function(Pid, Schema, FunName, Params) ->
   execute(Pid, Query, Params).
 
 execute(Pid, Query, Values) ->
-  trace("calling gen fsm to execute query"),
+  '_trace'("calling gen fsm to execute query"),
   gen_fsm:send_event(Pid, {self(), Query, Values}).
 
 prepare_update_data(Data) ->
   prepare_update_data(Data, [], [], 1).
 
 prepare_update_data([{Key, Val} | Tail], Columns, Vals, N) ->
-  debug("adding ~w", [{Key, Val}]),
+  '_debug'("adding ~w", [{Key, Val}]),
   prepare_update_data(
     Tail,
     Columns ++ "," ++ atom_to_list(Key) ++ "=$" ++ integer_to_list(N),
@@ -344,7 +344,7 @@ prepare_update_data([], [$, | Columns], Vals, _N) ->
 prepare_insert_data([]) ->
   {ok, [], [], []};
 prepare_insert_data(Data) ->
-  debug("preparing data ~w", [Data]),
+  '_debug'("preparing data ~w", [Data]),
   prepare_insert_data(Data, [], [], [], 1).
 
 prepare_insert_data([], [$, | Columns], [$, | Params], Values, _N) ->

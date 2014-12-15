@@ -36,7 +36,7 @@
 %% initialize. To ensure a synchronized start-up procedure, this
 %% function does not return until Module:init/1 has returned.
 %%
-%% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
+%% @spec start_link() -> {ok, Pid} | ignore | {'_err'or, Error}
 %% @end
 %%--------------------------------------------------------------------
 start_link(Opts) ->
@@ -60,7 +60,7 @@ start_link(Opts) ->
 %% @end
 %%--------------------------------------------------------------------
 init([Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout, Commands]) ->
-  trace("init"),
+  '_trace'("init"),
   gen_fsm:send_event(self(), {connect, Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout, Commands}),
   {ok, disconnected, #state{}}.
 
@@ -82,20 +82,20 @@ init([Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout, Commands]) ->
 disconnected({connect, Host, Port, User, Passwd, DB, SSL, SSLOpts, undefined, Commands}, S) ->
   disconnected({connect, Host, Port, User, Passwd, DB, SSL, SSLOpts, infinity, Commands}, S);
 disconnected({connect, Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout, _Commands}, S) ->
-  trace("connecting"),
+  '_trace'("connecting"),
   Opts = [{port, Port}, {database, DB},
           {ssl, SSL}, {ssl_opts, SSLOpts},
           {timeout, Timeout}, {async, self()}],
-  debug("connecting to ~s:~w, user ~s, opts ~w", [Host, Port, User, Opts]),
+  '_debug'("connecting to ~s:~w, user ~s, opts ~w", [Host, Port, User, Opts]),
   {ok, Backend} = pgsql:connect(Host, User, Passwd, Opts),
   {ok, C} = psql_worker:start_link(Backend, Timeout),
   pgsql:squery(Backend, "listen system"),
   pgsql:squery(Backend, "listen ui"),
-  trace("connected"),
+  '_trace'("connected"),
   {next_state, ready, S#state{worker = C, backend = Backend}}.
 
 ready(Msg, S) ->
-  warning("ready: unhandled msg ~w", [Msg]),
+  '_warning'("ready: unhandled msg ~w", [Msg]),
   {next_state, ready, S}.
 
 %%--------------------------------------------------------------------
@@ -131,7 +131,7 @@ ready(Msg, S) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_event(Event, StateName, State) ->
-  warning("unhandled all state event ~w when ~s", [Event, StateName]),
+  '_warning'("unhandled all state event ~w when ~s", [Event, StateName]),
   {next_state, StateName, State}.
 
 %%--------------------------------------------------------------------
@@ -151,7 +151,7 @@ handle_event(Event, StateName, State) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_sync_event(Event, From, StateName, State) ->
-  warning("unhandled all state request ~w when ~s from ~w", [Event, StateName, From]),
+  '_warning'("unhandled all state request ~w when ~s from ~w", [Event, StateName, From]),
   Reply = ok,
   {reply, Reply, StateName, State}.
 
@@ -171,13 +171,13 @@ handle_sync_event(Event, From, StateName, State) ->
 handle_info({pgsql, _Pid, {notification, <<"ui">>, _PgPid, Payment}},
             StateName, State) when Payment =/= <<>> ->
   Event = handle_msg(State, re:split(Payment, " ")),
-  debug("casting event ~w", [Event]),
+  '_debug'("casting event ~w", [Event]),
   hooks:run(ui, Event),
   {next_state, StateName, State};
 handle_info(stop, _StateName, State) ->
   {stop, normal, State};
 handle_info(Info, StateName, State) ->
-  warning("unhandled info msg ~w when ~s", [Info, StateName]),
+  '_warning'("unhandled '_info' msg ~w when ~s", [Info, StateName]),
   {next_state, StateName, State}.
 
 %%--------------------------------------------------------------------
@@ -226,7 +226,7 @@ table2atom(<<$_, Rest/binary>>) -> table2atom(Rest);
 table2atom(Table) -> binary_to_atom(Table, latin1).
 
 handle_msg(State, [<<"delete">>, <<"user">>, Username, ObjType, ObjId] = Msg) ->
-  debug("unsubscribing user ~w from ~w", [Username, {ObjType, ObjId}]),
+  '_debug'("unsubscribing user ~w from ~w", [Username, {ObjType, ObjId}]),
   hooks:run({ui, unsubscribe}, [unsubscribe, {user, Username}, bin2recipient(ObjType, ObjId)]),
   handle_msg1(State, Msg);
 handle_msg(State, Msg) ->
@@ -234,12 +234,12 @@ handle_msg(State, Msg) ->
 
 
 handle_msg1(State, [Action, ObjType, ObjId | _] = Msg) ->
-  debug("handling msg ~w", [Msg]),
+  '_debug'("handling msg ~w", [Msg]),
   Data = case handle_msg2(State, Msg) of
            <<>> -> <<>>;
            D -> <<",\"data\":", D/binary>>
          end,
-  debug("data is ~w", [Data]),
+  '_debug'("data is ~w", [Data]),
   Recipient = bin2recipient(ObjType, ObjId),
   [Recipient,
    <<"{\"action\":\"", Action/binary, "\"", Data/binary, "}">>].
@@ -258,7 +258,7 @@ handle_msg2(#state{worker = C}, [_, _ObjType, _ObjId, Schema, Table, Id]) ->
     {psql_worker, C, [[{json, Data}]]} ->
       Data;
     Answer when element(1, Answer) =:= psql_worker ->
-      warning("unknown answer ~w", [Answer]),
+      '_warning'("unknown answer ~w", [Answer]),
       <<>>;
     {'DOWN', MRef, _, _, Info} ->
       throw({psql_worker, Info})
@@ -277,8 +277,8 @@ handle_msg2(#state{worker = C}, [_, _ObjType, _ObjId, Schema, Table, Id]) ->
 %          >>,
 %  case pgsql:equery(C, Query, [Action, Type, Id]) of
 %    {ok, _, [{Data}]} ->
-%      debug("ui notification ~w", [Data]),
+%      '_debug'("ui notification ~w", [Data]),
 %      hooks:run(ui, [{Type, Id}, Data]);
 %    Else ->
-%      alert("unknown answer ~w", [Else])
+%      '_alert'("unknown answer ~w", [Else])
 %  end,
