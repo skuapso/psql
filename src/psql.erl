@@ -98,8 +98,8 @@ terminal_uin(_Pid, Terminal, Timeout) ->
 terminal_info(_Pid, _Terminal, M, _Timeout) when map_size(M) =:= 0 ->
   ok;
 terminal_info(_Pid, Terminal, Info, Timeout) ->
-  '_debug'("setting terminal ~w '_info' ~w", [Terminal, Info]),
   TerminalId = get_terminal_id(Terminal, Timeout),
+  '_debug'("setting terminal ~w '_info' ~w", [{TerminalId, Terminal}, Info]),
   execute(5, function, {terminal, set_info, [TerminalId, json_enc(Info)]}, Timeout),
   ok.
 
