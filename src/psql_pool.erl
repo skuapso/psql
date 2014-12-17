@@ -108,7 +108,7 @@ handle_call(Msg, From, State) ->
 
 handle_info({psql_worker, Pid, Answer}, #state{workers_ets = WEts} = State) ->
   '_debug'("answer ~w from ~w", [Answer, Pid]),
-  case ets:match(WEts, {Pid, {'_', '_', '$1'}, '_'}) of
+  case ets:match(WEts, {Pid, {{'_', '_', '$1'}, '_'}}) of
     [[From]] ->
       gen_server:reply(From, Answer),
       unlink(From);
@@ -179,18 +179,19 @@ delete_first_query(P, #state{queries_ets = QEts}) ->
   unlink(From),
   From ! {'DOWN', GenTag, process, ?MODULE, timeout}.
 
-clean_worker(Pid, normal, #state{workers_ets = WEts, backends_ets = BEts}) ->
-  '_trace'("worker ~w terminated", [Pid]),
+clean_worker(Pid, Reason, #state{workers_ets = WEts, backends_ets = BEts}) ->
+  '_warning'(Reason =:= normal, "worker ~w terminated", [Pid], trace),
   case ets:match(WEts, {Pid, '$1'}) of
     [[ready]] -> ok;
-    Else -> '_warning'("died while ~w", [Else])
+    [[{{_Prio, _Tag, {From, GenTag}}, Query}]] ->
+      '_warning'("~w query failed: ~w", [From, Query]),
+      From ! {'DOWN', GenTag, process, ?MODULE, Reason};
+    Else ->
+      '_warning'("clean_worker: worker ~w not found ~w", [Pid, Else])
   end,
   ets:delete(WEts, Pid),
   ets:delete(BEts, Pid),
-  ok;
-clean_worker(Pid, Reason, State) ->
-  '_warning'("worker ~w terminated with reason ~w", [Pid, Reason]),
-  clean_worker(Pid, normal, State).
+  ok.
 
 clean_client(Pid, #state{queries_ets = QEts} = State) ->
   case ets:match(QEts, {{'$1', '$2', {Pid, '$3'}}, '_'}) of
@@ -247,7 +248,7 @@ psql(Query, #state{backends_ets = BEts} = State) ->
   end.
 
 request_worker(Pid, {Id, {Request, Data}}, #state{queries_ets = QEts, workers_ets = WEts}) ->
-  ets:insert(WEts, {Pid, Id, Data}),
+  ets:insert(WEts, {Pid, {Id, Data}}),
   ets:delete(QEts, Id),
   psql_worker:Request(Pid, Data).
 
