@@ -24,6 +24,7 @@ returns timestamptz
 as $$
 declare
   i timestamptz;
+  col text;
 begin
   loop
     select data_id::timestamptz into i from data.binary where md5(data)=md5($2) limit 1;
@@ -33,6 +34,11 @@ begin
     begin
       insert into data.binary values ($1::bigint, $2);
     exception when unique_violation then
+      get stacked diagnostics col = CONSTRAINT_NAME;
+      if col = 'binary(data_id)' then
+        raise warning 'data id should be unique';
+        raise unique_violation;
+      end if;
     end;
   end loop;
   return i;
