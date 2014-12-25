@@ -26,7 +26,9 @@ create table replica.servers(
     not null
     default '00:00:01',
 
-  max_connections bigint,
+  max_connections bigint
+    not null
+    default 10,
 
   connection_type replica.connection_types
     not null
