@@ -109,9 +109,9 @@ handle_call(Msg, From, State) ->
 handle_info({psql_worker, Pid, Answer}, #state{workers_ets = WEts} = State) ->
   '_debug'("answer ~w from ~w", [Answer, Pid]),
   case ets:match(WEts, {Pid, {{'_', '_', '$1'}, '_'}}) of
-    [[From]] ->
+    [[{FPid, _} = From]] ->
       gen_server:reply(From, Answer),
-      unlink(From);
+      unlink(FPid);
     _ ->
       if
         Answer =:= {error, timeout} -> ok;
@@ -180,7 +180,7 @@ delete_first_query(P, #state{queries_ets = QEts}) ->
   From ! {'DOWN', GenTag, process, ?MODULE, timeout}.
 
 clean_worker(Pid, Reason, #state{workers_ets = WEts, backends_ets = BEts}) ->
-  '_warning'(Reason =:= normal, "worker ~w terminated", [Pid], trace),
+  '_warning'(Reason =/= normal, "worker ~w terminated", [Pid], trace),
   case ets:match(WEts, {Pid, '$1'}) of
     [[ready]] -> ok;
     [[{{_Prio, _Tag, {From, GenTag}}, Query}]] ->
