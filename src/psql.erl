@@ -6,13 +6,12 @@
 -export([json_enc/1]).
 -export([pre_json/1]).
 %% hooks
--export([connection_accepted/4]).
--export([connection_closed/3]).
--export([terminal_uin/3]).
--export([terminal_info/4]).
--export([terminal_raw_data/4]).
--export([terminal_answer/5]).
--export([terminal_packet/4]).
+-export([connected/4]).
+-export([disconnected/3]).
+-export([info/5]).
+-export([raw_data/5]).
+-export([answer/6]).
+-export([packet/5]).
 -export([get/5]).
 -export([set/5]).
 -export([get_opts/1]).
@@ -51,19 +50,19 @@ stop(_State) ->
 start_link() ->
   supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
-connection_accepted(Pid, Proto, Socket, Timeout) when is_port(Socket) ->
+connected(Pid, {Proto, UIN}, Socket, Timeout) when is_port(Socket) ->
   '_trace'("new connection accepted"),
   {ok, {RemoteIP, RemotePort}} = inet:peername(Socket),
   {ok, {LocalIP, LocalPort}} = inet:sockname(Socket),
   ConnectionId = now2id(),
   [[{open, ConnectionID}]] = execute(10000, function, {connection, open,
-                               [ConnectionId, Proto, LocalIP, LocalPort, RemoteIP, RemotePort]},
+                               [ConnectionId, Proto, UIN, LocalIP, LocalPort, RemoteIP, RemotePort]},
               Timeout),
   hooks:set(Pid, connection_id, ConnectionID),
   '_debug'("~w connection id is ~w", [Pid, ConnectionID]),
   ok.
 
-connection_closed(Pid, normal, Timeout) ->
+disconnected(Pid, normal, Timeout) ->
   case hooks:get(Pid, connection_id) of
     undefined ->
       '_alert'("connection closed, but no connection ID specified for ~w", [Pid]),
@@ -76,34 +75,26 @@ connection_closed(Pid, normal, Timeout) ->
         [] -> '_alert'("no connection in DB ~w", [ConnectionId]), ok
       end
   end;
-connection_closed(Pid, {broken, Data}, Timeout) ->
+disconnected(Pid, {broken, Data}, Timeout) ->
   ConnectionId = hooks:get(Pid, connection_id),
   Id = now2id(),
   execute(-10, function, {data, add_broken, [Id, Data, ConnectionId]}, Timeout),
-  connection_closed(Pid, normal, Timeout);
-connection_closed(Pid, {incomplete, Data}, Timeout) ->
-  connection_closed(Pid, {broken, Data}, Timeout);
-connection_closed(Pid, Reason, Timeout) ->
+  disconnected(Pid, normal, Timeout);
+disconnected(Pid, {incomplete, Data}, Timeout) ->
+  disconnected(Pid, {broken, Data}, Timeout);
+disconnected(Pid, Reason, Timeout) ->
   '_warning'("closed connection with unknown reason ~w", [Reason]),
-  connection_closed(Pid, normal, Timeout).
+  disconnected(Pid, normal, Timeout).
 
-terminal_uin(_Pid, Terminal, Timeout) ->
-  TerminalId = get_terminal_id(Terminal, Timeout),
-  ConnectionId = hooks:get(connection_id),
-  '_debug'("setting terminal ~w on connection ~w", [TerminalId, ConnectionId]),
-  hooks:set(terminal_id, TerminalId),
-  execute(10, function, {connection, set_terminal, [ConnectionId, TerminalId]}, Timeout),
-  ok.
-
-terminal_info(_Pid, _Terminal, M, _Timeout) when map_size(M) =:= 0 ->
+info(terminal, _Pid, _Terminal, M, _Timeout) when map_size(M) =:= 0 ->
   ok;
-terminal_info(_Pid, Terminal, Info, Timeout) ->
+info(terminal, _Pid, Terminal, Info, Timeout) ->
   TerminalId = get_terminal_id(Terminal, Timeout),
   '_debug'("setting terminal ~w '_info' ~w", [{TerminalId, Terminal}, Info]),
   execute(5, function, {terminal, set_info, [TerminalId, json_enc(Info)]}, Timeout),
   ok.
 
-terminal_raw_data(_Pid, _Terminal, RawData, Timeout) ->
+raw_data(terminal, _Pid, _Terminal, RawData, Timeout) ->
   '_trace'("terminal raw data"),
   ConnectionID = hooks:get(connection_id),
   RawID = now2id(),
@@ -122,7 +113,7 @@ terminal_raw_data(_Pid, _Terminal, RawData, Timeout) ->
       ok
   end.
 
-terminal_packet(_Pid, _Terminal, #{type := Type,
+packet(terminal, _Pid, _Terminal, #{type := Type,
                                    raw := RawPacket
                                   } = Packet, Timeout) ->
   '_trace'("terminal packet"),
@@ -151,7 +142,7 @@ terminal_packet(_Pid, _Terminal, #{type := Type,
       end
   end.
 
-terminal_answer(_Pid, _Terminal, Module, Answer, Timeout) ->
+answer(terminal, _Pid, _Terminal, Module, Answer, Timeout) ->
   '_trace'("terminal answer"),
   case hooks:get(raw_id) of
     undefined ->
@@ -165,9 +156,9 @@ get(_Pid, terminal, id, Terminal, Timeout) ->
   TID = get_terminal_id(Terminal, Timeout),
   hooks:set(terminal_id, TID),
   {ok, {?MODULE, TID}};
-get(_Pid, replica, servers, {_Module, _UIN}, Timeout) ->
+get(_Pid, replica, servers, Terminal, Timeout) ->
   '_trace'("getting servers"),
-  TerminalID = hooks:get(terminal_id),
+  TerminalID = get_terminal_id(Terminal, Timeout),
   ConnectionID = hooks:get(connection_id),
   ServersPrepare = execute(100, function,
                            {replica, get_servers, [TerminalID, ConnectionID]},
@@ -270,16 +261,17 @@ init(Opts) ->
   MaxConnections = misc:get_env(?MODULE, max_connections, Opts),
   QueueSize = misc:get_env(?MODULE, queue_size, Opts, MaxConnections),
   HooksWeight = misc:get_env(?MODULE, weight, Opts),
-  hooks:install(connection_accepted, HooksWeight, {?MODULE, connection_accepted}),
-  hooks:install(connection_closed, HooksWeight, {?MODULE, connection_closed}),
-  hooks:install(terminal_uin, HooksWeight, {?MODULE, terminal_uin}),
-  hooks:install(terminal_info, HooksWeight, {?MODULE, terminal_info}),
-  hooks:install(terminal_raw_data, HooksWeight, {?MODULE, terminal_raw_data}),
-  hooks:install(terminal_answer, HooksWeight, {?MODULE, terminal_answer}),
-  hooks:install(terminal_packet, HooksWeight, {?MODULE, terminal_packet}),
+  hooks:install({terminal, connected}, HooksWeight, {?MODULE, connected}),
+  hooks:install({terminal, disconnected}, HooksWeight, {?MODULE, disconnected}),
+  hooks:install({terminal, info}, HooksWeight, {?MODULE, info}, [terminal]),
+  hooks:install({terminal, raw_data}, HooksWeight, {?MODULE, raw_data}, [terminal]),
+  hooks:install({terminal, answer}, HooksWeight, {?MODULE, answer}, [terminal]),
+  hooks:install({terminal, packet}, HooksWeight, {?MODULE, packet}, [terminal]),
   hooks:install(get, HooksWeight, {?MODULE, get}),
   hooks:install({?MODULE, get}, HooksWeight, {?MODULE, get}),
   hooks:install({?MODULE, set}, HooksWeight, {?MODULE, set}),
+  hooks:install({replica, connected}, HooksWeight, {?MODULE, connected}),
+  hooks:install({replica, disconnected}, HooksWeight, {?MODULE, disconnected}),
   Args = get_opts(Opts),
   '_debug'("connection options: ~w", [Args]),
   {
@@ -334,6 +326,7 @@ get_terminal_id({Module, UIN}, Timeout) ->
   case hooks:get(terminal_id) of
     undefined ->
       [[{get, TID}]] = execute(10, function, {terminal, get, [UIN, Module]}, Timeout),
+      hooks:set(terminal_id, TID),
       TID;
     TID -> TID
   end.

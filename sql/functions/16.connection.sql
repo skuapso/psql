@@ -38,6 +38,7 @@ end $$ language plpgsql;
 create function connection.open(
   _id timestamptz,
   _proto terminals.protocols,
+  _uin bigint,
   _local_ip inet,
   _local_port bigint,
   _remote_ip inet,
@@ -46,11 +47,11 @@ create function connection.open(
 begin
   return query
   with data_id as (
-    insert into data.connections (id, protocol, type)
-    values ($1, $2, 'ip')
+    insert into data.connections (id, protocol, type, terminal_id)
+    values ($1, $2, 'ip', terminal.get($3, $2))
     returning id
   ) insert into connections.ip_data
-  select D.id, $3, $4, $5, $6
+  select D.id, $4, $5, $6, $7
   from data_id D returning id::timestamptz;
 end $$ language plpgsql;
 
