@@ -154,7 +154,6 @@ answer(terminal, _Pid, _Terminal, Module, Answer, Timeout) ->
 
 get(_Pid, terminal, id, Terminal, Timeout) ->
   TID = get_terminal_id(Terminal, Timeout),
-  hooks:set(terminal_id, TID),
   {ok, {?MODULE, TID}};
 get(_Pid, replica, servers, Terminal, Timeout) ->
   '_trace'("getting servers"),
