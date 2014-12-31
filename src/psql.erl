@@ -6,7 +6,7 @@
 -export([json_enc/1]).
 -export([pre_json/1]).
 %% hooks
--export([connected/4]).
+-export([connected/5]).
 -export([disconnected/3]).
 -export([info/5]).
 -export([raw_data/5]).
@@ -50,12 +50,16 @@ stop(_State) ->
 start_link() ->
   supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
-connected(Pid, {Proto, UIN}, Socket, Timeout) when is_port(Socket) ->
+connected(What, Pid, {Proto, UIN}, Socket, Timeout) when is_port(Socket) ->
   '_trace'("new connection accepted"),
   {ok, {RemoteIP, RemotePort}} = inet:peername(Socket),
   {ok, {LocalIP, LocalPort}} = inet:sockname(Socket),
   ConnectionId = now2id(),
-  [[{open, ConnectionID}]] = execute(10000, function, {connection, open,
+  Prio = case What of
+           terminal -> 100;
+           replica -> 10000
+         end,
+  [[{open, ConnectionID}]] = execute(Prio, function, {connection, open,
                                [ConnectionId, Proto, UIN, LocalIP, LocalPort, RemoteIP, RemotePort]},
               Timeout),
   hooks:set(Pid, connection_id, ConnectionID),
@@ -260,7 +264,7 @@ init(Opts) ->
   MaxConnections = misc:get_env(?MODULE, max_connections, Opts),
   QueueSize = misc:get_env(?MODULE, queue_size, Opts, MaxConnections),
   HooksWeight = misc:get_env(?MODULE, weight, Opts),
-  hooks:install({terminal, connected}, HooksWeight, {?MODULE, connected}),
+  hooks:install({terminal, connected}, HooksWeight, {?MODULE, connected}, [terminal]),
   hooks:install({terminal, disconnected}, HooksWeight, {?MODULE, disconnected}),
   hooks:install({terminal, info}, HooksWeight, {?MODULE, info}, [terminal]),
   hooks:install({terminal, raw_data}, HooksWeight, {?MODULE, raw_data}, [terminal]),
@@ -269,7 +273,7 @@ init(Opts) ->
   hooks:install(get, HooksWeight, {?MODULE, get}),
   hooks:install({?MODULE, get}, HooksWeight, {?MODULE, get}),
   hooks:install({?MODULE, set}, HooksWeight, {?MODULE, set}),
-  hooks:install({replica, connected}, HooksWeight, {?MODULE, connected}),
+  hooks:install({replica, connected}, HooksWeight, {?MODULE, connected}, [replica]),
   hooks:install({replica, disconnected}, HooksWeight, {?MODULE, disconnected}),
   Args = get_opts(Opts),
   '_debug'("connection options: ~w", [Args]),
