@@ -103,9 +103,9 @@ create table replica.rules(
 );
 
 create sequence replica.seq_data;
+create sequence replica.seq_answers;
 create table replica.data(
   id bigint
-    default nextval('replica.seq_data')
     constraint "data(id)"
     primary key,
 
@@ -137,55 +137,66 @@ create table replica.data(
     on delete cascade,
 
   answer_id bigint
+    not null,
+
+  answer_data_id bigint
+    not null
+    constraint "data->answers.id"
+    references data."binary"(data_id)
+    on delete cascade,
+
+  connection_id bigint
+    not null
+    constraint "data->data.connections"
+    references data."connections"(id)
+    on delete cascade
 );
-
-create index "data(id,server && answer is null"
-  on replica.data(id, server_id)
-  where answer_id is null;
-
-create index "data(id,server,terminal)"
-  on replica.data(id, server_id, terminal_id)
-  where answer_id is null;
-
-create index "data(answer)"
-  on replica.data(answer_id);
 
 create index "data(parent)"
   on replica.data(parent_id);
 
-create sequence replica.seq_answers;
-create table replica.answers(
+create table replica.undelivered(
   id bigint
-    default nextval('replica.seq_answers')
-    constraint "answers(id)" primary key,
+    default nextval('replica.seq_data')
+    constraint "undelivered(id)"
+    primary key,
 
-  connection_id bigint
+  parent_id bigint
     not null
-    constraint "answers->connection"
-    references data.connections(id)
+    constraint "undelivered(parent)->data.packets"
+    references data.packets(id)
+    on delete cascade,
+
+  server_id bigint
+    not null
+    constraint "undelivered->servers"
+    references replica.servers(id)
+    on delete cascade,
+
+  protocol terminals.protocols
+    not null,
+
+  terminal_id bigint
+    not null
+    constraint "undelivered->terminals.data"
+    references terminals._data(id)
     on delete cascade,
 
   data_id bigint
     not null
-    constraint "data->data.binary"
+    constraint "undelivered->data.binary"
     references data."binary"(data_id)
     on delete cascade
 );
 
-create index "answers(connection_id)"
-  on replica.answers(connection_id);
+create index "undelivered(id,server)"
+  on replica.undelivered(id, server_id);
 
-alter table replica.data
-  add constraint "data->answers" foreign key(answer_id)
-  references replica.answers(id)
-  on delete cascade;
+create index "undelivered(id,server,terminal)"
+  on replica.undelivered(id, server_id, terminal_id);
 
-create trigger "=>insert 00 correct id"
-  before insert
-  on replica.answers
-  for each row
-  when (checking.is_value_presents('replica', 'answers', 'id', new.id))
-  execute procedure triggers.correct_timestamp_id();
+create index "undelivered(parent)"
+  on replica.undelivered(parent_id);
 
 create table replica.issues(
   id bigint

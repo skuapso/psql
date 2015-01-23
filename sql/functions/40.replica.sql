@@ -234,10 +234,9 @@ begin
       terminal.protocols(D.terminal_id) as tproto,
       terminal.uin(D.terminal_id) as tuin
     from
-      replica.data D
+      replica.undelivered D
     where
-      D.answer_id is null
-      and D.server_id=$1
+      D.server_id=$1
     order by D.id
     limit 1
   ) as S;
@@ -259,13 +258,12 @@ begin
     B.data,
     D.protocol
   from
-    replica.data D
+    replica.undelivered D
   inner join
     data."binary" B
   using(data_id)
   where
-    D.answer_id is null
-    and D.server_id=$1
+    D.server_id=$1
     and D.terminal_id=$2
   order by D.id
   limit $3;
@@ -282,8 +280,8 @@ returns setof timestamptz
 as $$
 begin
   return query
-  insert into replica.data
-  values ($1, $2, $3, $4, $6, data.binary_id($1, $5), null) returning id::timestamptz;
+  insert into replica.undelivered
+  values ($1, $2, $3, $4, $6, data.binary_id($1, $5)) returning id::timestamptz;
 end $$ language plpgsql;
 
 create function replica.set_answer(
@@ -296,19 +294,8 @@ as $$
 begin
   return query
   with
-    answer as (
-      insert into replica.answers(id, connection_id, data_id)
-      select $1, $3, data.binary_id($1, $2)
-      returning id,data_id),
-    data as (
-      update
-        replica.data D
-      set
-        (answer_id) = (answer.id)
-      from
-        answer
-      where
-        D.id in (select unnest($4))
-      returning D.id)
-  select answer.id::timestamptz from answer;
+    bin as (select data.binary_id($1, $2) as data_id),
+    del as (delete from replica.undelivered where id=any($4) returning *),
+    ins as (insert into replica.data select del.*,$1::bigint,bin.data_id,$3 from del, bin returning *)
+  select answer_id::timestamptz as id from ins limit 1;
 end $$ language plpgsql;
