@@ -126,12 +126,16 @@ as $$
 declare
   p bigint;
   n bigint;
+  o bigint;
 begin
-  select prev,next into p,n from events.data where id=$1;
+  select prev,next,object_id into p,n,o from events.data where id=$1;
 
   update events.data set valid=false, prev=null, next=null where id=$1;
   update events.data set next=n where id=p;
   update events.data set prev=p where id=n;
+  if n is null then
+    update objects.data set last_event_id=p where id=o;
+  end if;
   return true;
 end $$ language plpgsql;
 
