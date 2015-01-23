@@ -1,6 +1,6 @@
 create type gis.types as enum(
-  'milestone', 'park', 'road',
-  'village', 'town', 'city',
+  'working_area', 'park', 'milestone',
+  'road', 'town',
   'county', 'region', 'country');
 
 create function gis.osm(_id bigint)
