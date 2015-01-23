@@ -116,7 +116,7 @@ create table objects.tools(
 create table objects._sensors(
   id bigint
     constraint zidx_sensors_pk primary key
-    default -nextval('sensors.seq_ids')
+    default nextval('sensors.seq_ids')
   ,object_id bigint
     not null
     constraint zidx_sensors_fk_object references objects._data(id)
