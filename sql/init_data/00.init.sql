@@ -103,6 +103,7 @@ grant usage on schema terminal    to "$user";
 grant usage on schema terminals   to "$user";
 grant usage on schema uac         to "$user";
 grant usage on schema jsonb       to "$user";
+grant usage on schema gis         to "$user";
 grant select on _users.data       to "$user";
 grant select on _users.groups     to "$user";
 grant select on _users.all        to "$user";
@@ -120,6 +121,7 @@ grant select on sensors.type_ports      to "$user";
 grant select on terminals.data          to "$user";
 grant select on terminals.models        to "$user";
 grant select on terminals.ports         to "$user";
+grant select on gis._data               to "$user";
 
 grant "$user" to "$manager";
 grant usage   on schema "group"               to "$manager";
@@ -127,7 +129,6 @@ grant usage   on schema triggers              to "$manager";
 
 grant update  on objects.seq__data            to "$manager";
 grant all     on objects.data                 to "$manager";
-revoke delete on objects._data              from "$manager";
 
 grant update  on objects.seq__groups          to "$manager";
 grant all     on objects.groups               to "$manager";
@@ -153,8 +154,7 @@ grant all     on sensors._data                to "$manager";
 revoke delete on sensors._data              from "$manager";
 
 grant update  on terminals.seq__data          to "$manager";
-grant all     on terminals._data              to "$manager";
-revoke delete on terminals._data            from "$manager";
+grant all     on terminals.data               to "$manager";
 
 do $$begin raise warning 'i think it should be done differently'; end$$;
 -- grant select on options.data to public?
