@@ -17,16 +17,17 @@ begin
   union all select row_to_json(objects_specializations)::jsonb from (
     select *,'specialization' as "type" from objects.specializations
   ) objects_specializations
-  union all select row_to_json(objects)::jsonb from (
-    select *,'object' as "type" from objects.data
-  ) objects
   union all select row_to_json(sensors)::jsonb from (
     select *,'sensor' as "type" from sensors.data
   ) sensors
   union all select row_to_json(tool)::jsonb from (
     select *,'object_tool' as "type" from objects.tools
   ) tool
-  union all select row_to_json(obj_sensors)::jsonb from (
-    select *,'object_sensor' as "type" from objects.sensors order by id
-  ) obj_sensors;
+  union all select row_to_json(geographies)::jsonb from (
+    select *,'geo' as "type" from gis._data order by id
+  ) geographies
+  union all select row_to_json(objects)::jsonb from (
+    select *,'object' as "type" from objects.data
+  ) objects
+  ;
 end $$ language plpgsql stable;
