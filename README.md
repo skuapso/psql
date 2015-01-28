@@ -10,6 +10,7 @@
 *следующие зависимости используются в разрабатываемой части и не используются в стабильной*
 * [jsonb-extend](http://github.com/koctep/jsonb-extend)
 * [postgis](http://postgis.net)
+* [plv8](http://pgxn.org/dist/plv8/)
 
 ## Предназначение
 
