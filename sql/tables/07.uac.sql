@@ -77,11 +77,15 @@ create view objects.sensors as
 create view objects.data as
   select
     O.*,
-    array_to_json(array_agg(row_to_json(S.*)))::jsonb as sensors,
+    array_to_json(
+      array(
+        select row_to_json(s.*)
+        from objects.sensors s where object_id=o.id
+      )
+    )::jsonb as sensors,
     jsonb.extend(E.data, json_build_object('eventtime', time)) as data,
     'object'::varchar as type
   from objects.viewable O
-  inner join objects.sensors S on (O.id = S.object_id)
   left join events._data E on (O.last_event_id = E.id)
   where not O.deleted
   group by O.id,O.no,O.model_id,
