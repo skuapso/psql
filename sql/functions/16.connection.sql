@@ -43,16 +43,25 @@ create function connection.open(
   _local_port bigint,
   _remote_ip inet,
   _remort_port bigint
-) returns setof timestamptz as $$
+) returns table (
+  connection_id timestamptz,
+  terminal_id bigint
+) as $$
 begin
   return query
-  with data_id as (
-    insert into data.connections (id, protocol, type, terminal_id)
-    values ($1, $2, 'ip', terminal.get($3, $2))
-    returning id
-  ) insert into connections.ip_data
-  select D.id, $4, $5, $6, $7
-  from data_id D returning id::timestamptz;
+  with
+    data as (
+      insert into data.connections (id, protocol, type, terminal_id)
+      values ($1, $2, 'ip', terminal.get($3, $2))
+      returning data.connections.id, data.connections.terminal_id
+    ),
+    ip as (
+      insert into connections.ip_data
+      select D.id, $4, $5, $6, $7
+      from data D
+    )
+  select D.id::timestamptz,D.terminal_id
+  from data D;
 end $$ language plpgsql;
 
 create function connection.close(

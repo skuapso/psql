@@ -59,10 +59,12 @@ connected(What, Pid, {Proto, UIN}, Socket, Timeout) when is_port(Socket) ->
            terminal -> 100;
            replica -> 10000
          end,
-  [[{open, ConnectionID}]] = execute(Prio, function, {connection, open,
-                               [ConnectionId, Proto, UIN, LocalIP, LocalPort, RemoteIP, RemotePort]},
+  [[{terminal_id, TerminalId},
+    {connection_id, ConnectionID}]] = execute(Prio, function, {connection, open,
+                            [ConnectionId, Proto, UIN, LocalIP, LocalPort, RemoteIP, RemotePort]},
               Timeout),
   hooks:set(Pid, connection_id, ConnectionID),
+  hooks:set(Pid, terminal_id, TerminalId),
   '_debug'("~w connection id is ~w", [Pid, ConnectionID]),
   ok.
 
