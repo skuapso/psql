@@ -3,8 +3,6 @@
 -behaviour(application).
 -behaviour(supervisor).
 
--export([json_enc/1]).
--export([pre_json/1]).
 %% hooks
 -export([connected/5]).
 -export([disconnected/3]).
@@ -97,7 +95,7 @@ info(terminal, _Pid, _Terminal, M, _Timeout) when map_size(M) =:= 0 ->
 info(terminal, _Pid, Terminal, Info, Timeout) ->
   TerminalId = get_terminal_id(Terminal, Timeout),
   '_debug'("setting terminal ~w '_info' ~w", [{TerminalId, Terminal}, Info]),
-  execute(5, function, {terminal, set_info, [TerminalId, json_enc(Info)]}, Timeout),
+  execute(5, function, {terminal, set_info, [TerminalId, misc:to_json(Info)]}, Timeout),
   ok.
 
 raw_data(terminal, _Pid, _Terminal, RawData, Timeout) ->
@@ -127,7 +125,7 @@ packet(terminal, _Pid, _Terminal, #{type := Type,
                 undefined -> erlang:universaltime();
                 ET -> ET
               end,
-  PacketJSON = json_enc(maps:without([type, raw, eventtime], Packet)),
+  PacketJSON = misc:to_json(maps:without([type, raw, eventtime], Packet)),
   case hooks:get(raw_id) of
     undefined -> stop;
     RawId ->
@@ -340,20 +338,3 @@ now2id() ->
   Now = {_, _, MicroSec} = erlang:now(),
   {Date, {H, M, S}} = calendar:now_to_universal_time(Now),
   {Date, {H, M, S + MicroSec/1000000}}.
-
-json_enc(L) ->
-  L1 = pre_json(L),
-  case catch jsxn:encode(L1) of
-    {'EXIT', {badarg, _}} -> '_warning'("can't transform to json: ~w", [L1]), <<"{}">>;
-    {'EXIT', Reason} -> '_warning'("jsx failed transform ~w: ~w", [L1, Reason]), <<"{}">>;
-    E -> E
-  end.
-
-pre_json(Map) ->
-  maps:map(
-    fun(_, V) when is_map(V) -> pre_json(V);
-       (LL, {G, M}) when LL =:= latitude; LL =:= longitude ->
-        #{d => G, m => M};
-       (_, V) -> V
-    end,
-    Map).
