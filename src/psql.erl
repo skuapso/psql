@@ -280,7 +280,7 @@ init(Opts) ->
   {
     ok,
     {
-      {one_for_one, 5, 10},
+      {one_for_one, 5, 1},
       [
         {
           psql_listener,

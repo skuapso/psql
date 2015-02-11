@@ -61,6 +61,7 @@ start_link(Opts) ->
 %%--------------------------------------------------------------------
 init([Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout, Commands]) ->
   '_trace'("init"),
+  timer:sleep(400),
   gen_fsm:send_event(self(), {connect, Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout, Commands}),
   {ok, disconnected, #state{}}.
 
