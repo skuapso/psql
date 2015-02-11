@@ -47,3 +47,9 @@ select *
 from gis._data D
 join gis._rels R using(id)
 join gis._geography G using(data_id);
+
+create view gis._geometry as
+select data_id,
+       data::geometry as data,
+       osm_id
+  from gis._geography;
