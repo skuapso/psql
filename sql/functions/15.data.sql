@@ -129,14 +129,6 @@ begin
   returning r.id::timestamptz;
 end $$ language plpgsql;
 
-create function data.merge(
-  a1 jsonb,
-  a2 jsonb
-) returns jsonb
-as $$
-  return plv8.extend(a1, a2);
-$$ language plv8;
-
 create function data.compute(
   object_id bigint,
   sensor_id bigint,

@@ -98,29 +98,28 @@ create aggregate navigation.part(bool)(
 create function navigation.to_geography(_location jsonb) returns geography as $$
 declare
   alt text := $1->>'altitude';
+  lon text := $1->>'longitude';
+  lat text := $1->>'latitude';
 begin
   if alt is null then
     alt = '0';
   end if;
+  if lon is null then
+    lon = '0';
+  end if;
+  if lat is null then
+    lat = '0';
+  end if;
   return (
     'POINTZ('
-      || ($1->>'longitude')
+      || lon
       || ' '
-      || ($1->>'latitude')
+      || lat
       || ' '
       || alt
       || ')'
   )::geography;
 end $$ language plpgsql immutable strict;
-
-create function navigation.get(location jsonb, param varchar) returns float as $$
-  var o = JSON.parse(location);
-  return plv8.ll_convert(o, param);
-$$ language plv8 immutable strict;
-
-create function navigation.get(location json, param varchar) returns float as $$
-  select navigation.get($1::jsonb, $2);
-$$ language sql immutable strict;
 
 create function navigation.to_jsonb(_location geography) returns jsonb as $$
 begin
@@ -134,6 +133,21 @@ begin
         'latitude', navigation.y($1),
         'altitude', navigation.z($1)
       )
+    end;
+end $$ language plpgsql immutable;
+
+create function navigation.normalize(jsonb) returns jsonb as $$
+begin
+  if jsonb_typeof($1)<>'object' and jsonb_typeof($1)<>'number' then
+    raise exception 'cannot normalize %', $1;
+  end if;
+  return
+    case
+      when jsonb_typeof($1)='number' then
+        $1
+      else
+        ((case when ($1->>'d')::int4 > 0 then 1 else -1 end) *
+        (abs(($1->>'d')::int4) + ($1->>'m')::float/60.0))::text::jsonb
     end;
 end $$ language plpgsql immutable;
 

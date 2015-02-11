@@ -63,13 +63,22 @@ end $$ language plpgsql stable;
 create function sensor.compute_location(_object_id bigint, _sensor_id bigint, _val jsonb)
 returns jsonb
 as $$
-  var loc = JSON.parse(_val);
-  loc.latitude = plv8.ll_convert(loc.latitude);
-  loc.longitude = plv8.ll_convert(loc.longitude);
-  loc.places = plv8.execute("select gis.places(($1::jsonb)::geography)", [JSON.stringify(loc)])
-                        [0].places;
-  return JSON.stringify(loc);
-$$ language plv8 immutable;
+begin
+  return
+  (with
+    norm as (
+      select row_to_json(S.*)::jsonb as coor from (
+        select navigation.normalize(_val->'latitude') as latitude,
+               navigation.normalize(_val->'longitude') as longitude
+        ) S
+    ),
+    places as (
+      select row_to_json(S.*)::jsonb as p from (
+        select array_to_json(gis.places(coor::geography))::jsonb as places from norm
+      ) S
+    )
+  select jsonb.extend(jsonb.extend(_val, coor), p) from norm join places on true);
+end $$ language plpgsql stable;
 
 create function sensor.type(_sensor_id bigint)
 returns bigint
