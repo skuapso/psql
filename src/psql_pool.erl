@@ -106,6 +106,12 @@ handle_call(Msg, From, State) ->
   '_notice'("unhanded call ~w from ~w when ~w", [Msg, From, State]),
   {noreply, State}.
 
+handle_info({psql_worker, backend, Pid, BPid},
+            #state{workers_ets = WEts, backends_ets = BEts} = State) ->
+  ets:insert(WEts, {Pid, ready}),
+  ets:insert(BEts, {Pid, BPid}),
+  new_request(),
+  {noreply, State};
 handle_info({psql_worker, Pid, Answer}, #state{workers_ets = WEts} = State) ->
   '_debug'("answer ~w from ~w", [Answer, Pid]),
   case ets:match(WEts, {Pid, {{'_', '_', '$1'}, '_'}}) of
@@ -147,7 +153,7 @@ handle_info(Info, State) ->
 %% @end
 %%--------------------------------------------------------------------
 terminate(Reason, _S) ->
-  '_debug'("terminating because ~w", [Reason]),
+  '_warning'(Reason =:= normal, "terminating because ~w", [Reason], debug),
   ok.
 
 %%--------------------------------------------------------------------
@@ -236,13 +242,13 @@ whois(Pid, State) ->
 new_request() ->
   gen_server:cast(self(), new_request).
 
-psql(Query, #state{backends_ets = BEts} = State) ->
+psql(Query, #state{backends_ets = BEts, workers_ets = WEts} = State) ->
   case get_ready(State) of
     {ok, Pid} ->
       request_worker(Pid, Query, State);
     {ok, Pid, BackendPid} ->
       ets:insert(BEts, {Pid, BackendPid}),
-      request_worker(Pid, Query, State);
+      ets:insert(WEts, {Pid, starting});
     _ ->
       ok
   end.

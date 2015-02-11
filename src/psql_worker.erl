@@ -81,10 +81,8 @@ start_link(Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout, Commands) ->
                           [Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout, Commands],
                           [{timeout, Timeout}]) of
     {ok, Pid} ->
-      case gen_fsm:sync_send_event(Pid, backend, Timeout) of
-        {ok, BackendPid} -> {ok, Pid, BackendPid};
-        Else -> {error, Else}
-      end;
+      gen_fsm:send_event(Pid, {backend, self()}),
+      {ok, Pid, backend};
     Else -> Else
   end.
 
@@ -147,6 +145,9 @@ ready({Pid, Query, Values}, State) ->
   {reply, Reply, NextState, NewState, Timeout} = ready({Query, Values}, {self(), now()}, State),
   Pid ! {?MODULE, self(), Reply},
   {next_state, NextState, NewState, Timeout};
+ready({backend, From}, #state{socket = Socket} = State) ->
+  From ! {?MODULE, backend, self(), Socket},
+  {next_state, ready, State, State#state.timeout};
 ready(timeout, S) ->
   {stop, normal, S}.
 
@@ -168,8 +169,6 @@ ready(timeout, S) ->
 %%                   {stop, Reason, Reply, NewState}
 %% @end
 %%--------------------------------------------------------------------
-ready(backend, _From, #state{socket = Socket} = State) ->
-  {reply, {ok, Socket}, ready, State, State#state.timeout};
 ready({Query, Values}, _From, S) ->
   '_trace'("quering"),
   '_debug'("query ~w", [Query]),
