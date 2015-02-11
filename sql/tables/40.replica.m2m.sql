@@ -16,10 +16,7 @@ create table replica.m2m(
   eventtime timestamptz
     not null,
 
-  latitude navigation.coords_gm
-    not null,
-
-  longitude navigation.coords_gm
+  coordinates jsonb
     not null,
 
   used bigint
@@ -58,8 +55,7 @@ create function replica.m2m(
   _type data.types,
   _terminal_id bigint,
   _eventtime timestamptz,
-  _latitude navigation.coords_gm,
-  _longitude navigation.coords_gm,
+  _coordinates jsonb,
   _used bigint,
   _speed bigint,
   _course bigint) returns table (
@@ -75,11 +71,16 @@ declare
   re bigint;
   diff real;
   et timestamptz;
+  coords jsonb;
 begin
   tr = 0;
   act = x'20'::bigint;
   re = 1;
   diff = 0;
+  select (row_to_json(S.*))::jsonb into coords from (
+    select navigation.normalize(_coordinates->'longitude') as longitude,
+          navigation.normalize(_coordinates->'latitude') as latitude
+  ) S;
 
   select * into prev
   from replica.m2m T
@@ -99,7 +100,7 @@ begin
       re = prev.reboot;
     else
       if _used>3 and prev.used>3 then
-        diff = navigation.distance(_longitude, _latitude, prev.longitude, prev.latitude);
+        diff = navigation.distance(coords, prev.coordinates);
       else
         diff = 0;
       end if;
@@ -138,12 +139,12 @@ begin
     limit 1;
 
     if _used > 3 and next.used > 3 then
-      diff = navigation.distance(_longitude, _latitude, next.longitude, next.latitude);
+      diff = navigation.distance(coords, next.coordinates);
     else
       diff = 0;
     end if;
     if prev is not null then
-      diff = navigation.distance(_longitude, _latitude, prev.longitude, prev.latitude)
+      diff = navigation.distance(coords, prev.coordinates)
       + diff - (next.track - prev.track);
     end if;
     if et is null and diff<>0 then
@@ -162,7 +163,7 @@ begin
 
   insert into replica.m2m
   values (default, _type, _terminal_id,
-    _eventtime, _latitude, _longitude,
+    _eventtime, coords,
     _used, _speed, _course,
     tr, act, re);
 end $$ language plpgsql;

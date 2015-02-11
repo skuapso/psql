@@ -1,25 +1,3 @@
-do $$begin raise warning 'navigation.coords_gm needed for m2m replication'; end$$;
-create type navigation.coords_gm as(
-  degrees smallint,
-  minutes float8
-);
-
-create function navigation.coords2float4(navigation.coords_gm) returns real as $$
-begin
-  return (-1)^(($1.degrees<0)::int) * (@ $1.degrees + $1.minutes/60.0);
-end $$ language plpgsql immutable;
-
-create function navigation.coords2float8(navigation.coords_gm) returns float8 as $$
-begin
-  return (-1)^(($1.degrees<0)::int) * (@ $1.degrees + $1.minutes/60.0);
-end $$ language plpgsql immutable;
-
-create cast(navigation.coords_gm as real) with function
-  navigation.coords2float4(navigation.coords_gm);
-
-create cast(navigation.coords_gm as float8) with function
-  navigation.coords2float8(navigation.coords_gm);
-
 create function navigation.distance(geography, geography) returns float as $$
 begin
   return (6371008.77141506 + (navigation.z($1) + navigation.z($2))/2) / 6371008.77141506
@@ -40,11 +18,6 @@ begin
     ('point(' || lon1 || ' ' || lat1 || ' ' || alt1 || ')')::geography,
     ('point(' || lon2 || ' ' || lat2 || ' ' || alt2 || ')')::geography
   );
-end $$ language plpgsql immutable;
-
-create function navigation.distance(x1 navigation.coords_gm, y1 navigation.coords_gm, x2 navigation.coords_gm, y2 navigation.coords_gm) returns float as $$
-begin
-  return navigation.distance($1::float, $2::float, $3::float, $4::float);
 end $$ language plpgsql immutable;
 
 create function navigation.distance(jsonb, jsonb) returns float as $$
