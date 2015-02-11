@@ -200,7 +200,7 @@ get(_Pid, replica, undelivered, ServerID, Timeout) ->
 get(_Pid, m2m, track_info, {Type, EventTime, Coords, Used, Speed, Course}, Timeout) ->
   '_trace'("searching for m2m track '_info'"),
   TerminalID = hooks:get(terminal_id),
-  Params = [Type, TerminalID, EventTime, Coords, Used, Speed, Course],
+  Params = [Type, TerminalID, EventTime, misc:to_json(Coords), Used, Speed, Course],
   [Data] = execute(500, function, {replica, m2m, Params}, Timeout),
   Track = proplists:get_value(track, Data, 0),
   Action = proplists:get_value(action, Data, 0),
