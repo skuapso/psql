@@ -88,10 +88,10 @@ disconnected({connect, Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout, _Com
           {ssl, SSL}, {ssl_opts, SSLOpts},
           {timeout, Timeout}, {async, self()}],
   '_debug'("connecting to ~s:~w, user ~s, opts ~w", [Host, Port, User, Opts]),
-  {ok, Backend} = pgsql:connect(Host, User, Passwd, Opts),
+  {ok, Backend} = epgsql:connect(Host, User, Passwd, Opts),
   {ok, C} = psql_worker:start_link(Backend, Timeout),
-  pgsql:squery(Backend, "listen system"),
-  pgsql:squery(Backend, "listen ui"),
+  epgsql:squery(Backend, "listen system"),
+  epgsql:squery(Backend, "listen ui"),
   '_trace'("connected"),
   {next_state, ready, S#state{worker = C, backend = Backend}}.
 
@@ -169,7 +169,7 @@ handle_sync_event(Event, From, StateName, State) ->
 %%                   {stop, Reason, NewState}
 %% @end
 %%--------------------------------------------------------------------
-handle_info({pgsql, _Pid, {notification, <<"ui">>, _PgPid, Payment}},
+handle_info({epgsql, _Pid, {notification, <<"ui">>, _PgPid, Payment}},
             StateName, State) when Payment =/= <<>> ->
   Event = handle_msg(State, re:split(Payment, " ")),
   '_debug'("casting event ~w", [Event]),
@@ -276,7 +276,7 @@ handle_msg2(#state{worker = C}, [_, _ObjType, _ObjId, Schema, Table, Id]) ->
 %              ") as O"
 %            ") as O1"
 %          >>,
-%  case pgsql:equery(C, Query, [Action, Type, Id]) of
+%  case epgsql:equery(C, Query, [Action, Type, Id]) of
 %    {ok, _, [{Data}]} ->
 %      '_debug'("ui notification ~w", [Data]),
 %      hooks:run(ui, [{Type, Id}, Data]);

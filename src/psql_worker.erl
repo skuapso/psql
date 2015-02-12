@@ -130,12 +130,12 @@ disconnected({connect, Host, Port, User, Passwd, DB, SSL, SSLOpts, Timeout, Comm
   '_trace'("connecting"),
   Opts = [{port, Port}, {database, DB}, {ssl, SSL}, {ssl_opts, SSLOpts}, {timeout, infinity}],
   '_debug'("connecting to ~s:~w, user ~s, opts ~w", [Host, Port, User, Opts]),
-  {ok, C} = pgsql:connect(Host, User, Passwd, Opts),
+  {ok, C} = epgsql:connect(Host, User, Passwd, Opts),
   Commands = misc:get_env(psql, pre_commands, []),
   '_debug'("pre commands is ~w", [Commands]),
   lists:map(fun(X) ->
         '_debug'("running command ~s", [X]),
-        A = pgsql:squery(C, X),
+        A = epgsql:squery(C, X),
         '_debug'("answer is ~w", [A])
     end, Commands),
   '_trace'("connected"),
@@ -173,7 +173,7 @@ ready({Query, Values}, _From, S) ->
   '_trace'("quering"),
   '_debug'("query ~w", [Query]),
   '_debug'("values ~w", [Values]),
-  Reply = normalize(pgsql:equery(S#state.socket, Query, Values)),
+  Reply = normalize(epgsql:equery(S#state.socket, Query, Values)),
   '_trace'("query finished"),
   '_debug'("reply is ~w", [Reply]),
   {reply, Reply, ready, S, S#state.timeout}.
@@ -383,7 +383,7 @@ prepare_function_data([_Param | Params], PList, N) ->
   prepare_function_data(Params, PList ++ ",$" ++ integer_to_list(N), N + 1).
 
 close(undefined) -> ok;
-close(Pid) when is_pid(Pid) -> pgsql:close(Pid).
+close(Pid) when is_pid(Pid) -> epgsql:close(Pid).
 
 relation(Rel) when is_binary(Rel) -> Rel;
 relation({Schema, Name}) when is_binary(Schema), is_binary(Name) ->
