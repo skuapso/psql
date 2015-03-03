@@ -35,6 +35,7 @@ create table sensors.models(
     constraint zidx_models_uk_title unique
 );
 
+do $$begin raise warning 'sensors.data: public access?'; end$$;
 create table sensors._data(
   id bigint
     constraint zidx_data_pk primary key

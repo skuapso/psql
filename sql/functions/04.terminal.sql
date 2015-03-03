@@ -134,7 +134,7 @@ as $$
 begin
   return query
   update terminals._data
-  set info=data.merge(info, $2)
+  set info=jsonb.extend(info, $2)
   where id=$1
   returning info;
 end $$ language plpgsql;

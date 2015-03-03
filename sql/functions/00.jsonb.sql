@@ -1,5 +1,5 @@
 create function jsonb.extend(jsonb, jsonb, varchar[]) returns jsonb as $$
-  select jsonb_extend($1, $2);
+  select jsonb_deep_extend($1, $2);
 $$ language sql immutable strict;
 
 create function jsonb.extend(anyelement, anyelement, varchar[] default '{}') returns jsonb as $$
