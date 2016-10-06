@@ -9,7 +9,7 @@ begin
 end $$ language plpgsql immutable;
 
 create aggregate sensors.merge(jsonb) (
-  sfunc = jsonb_extend,
+  sfunc = jsonb.extend,
   stype = jsonb,
   initcond = '{}'
 );
